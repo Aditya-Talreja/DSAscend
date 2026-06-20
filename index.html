@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Ascend — A structured DSA sheet with 434 LeetCode problems organized by algorithm patterns. Track your progress and master Data Structures and Algorithms." />
+  <title>Ascend - DSA Sheet & Tracker</title>
+  <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="logo-text">ASCEND</div>
+    </div>
+
+    <div class="nav-center">
+      <button class="tab-btn active" id="tabArcade" data-target="tab-1">ARCADE</button>
+      <button class="tab-btn" id="tabSheet" data-target="tab-2">SHEET</button>
+      <button class="tab-btn" id="tabStats" data-target="tab-3">STATS</button>
+    </div>
+
+    <div class="nav-right">
+      <div class="auth-container" id="authContainer">
+        <button class="profile-btn" aria-label="Login" id="loginBtn">LOGIN</button>
+
+        <div class="profile-menu-container" style="display:none;" id="userProfileContainer">
+          <button class="profile-btn" aria-label="Profile" id="profileBtn">PROFILE</button>
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-item username-display" id="displayUsername">@user</div>
+            <a href="#" class="dropdown-item">Settings</a>
+            <a href="#" class="dropdown-item">Bookmarks</a>
+            <a href="#" class="dropdown-item">Data Export</a>
+            <a href="#" class="dropdown-item text-red" id="logoutBtn">Log Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="ticker-wrapper">
+    <div class="ticker-content">
+      <span id="tickerText1"></span>
+      <span id="tickerText2"></span>
+    </div>
+  </div>
+
+  <main class="content">
+    <div id="tab-1" class="tab-content active">
+      <div class="arcade-grid">
+        <section class="brutalist-card card-wide" id="what-is-ascend">
+          <h2>What is Ascend?</h2>
+          <p>
+            Ascend is a Data Structures and Algorithms sheet curated by
+            <a href="#reach-me" style="color: blue;">me</a>.
+          </p>
+          <p>
+            The idea behind Ascend was never to create just another DSA sheet.<br>
+            It was built after seeing countless students struggle with problem
+            solving,<br>many of whom give up early because they look at a solution
+            and think:
+          </p>
+          <blockquote>
+            How would anyone ever come up with something like this?
+          </blockquote>
+          <p>
+            The truth is that most people are not lacking intelligence - they
+            simply lack exposure. Problem solving in DSA is largely built on
+            familiarity. If you have never encountered a pattern before, it's
+            difficult to recognize it, visualize it,<br>or apply it when needed.
+          </p>
+          <p>
+            Ascend is designed to bridge that gap.
+          </p>
+          <p>
+            Every problem in this sheet has been carefully selected and organized
+            to help you gradually build intuition, recognize recurring patterns,
+            and develop the ability to approach unfamiliar problems with
+            confidence. The goal is not to memorize solutions, but to understand
+            the thinking behind them.
+          </p>
+          <p>
+            Data Structures and Algorithms are an essential part of Computer
+            Science. From search engines and social media platforms to operating
+            systems and databases, efficient software relies on strong
+            algorithmic foundations. Beyond interviews and coding assessments,
+            learning DSA develops structured thinking, analytical reasoning, and
+            a deeper understanding of how software works under the hood.
+          </p>
+          <p>
+            Ascend is my attempt to provide a clear, guided path through that
+            journey - one that helps you move from confusion to confidence, one
+            problem at a time.
+          </p>
+          <blockquote>
+            <strong>Ascend isn't about solving more problems. It's about becoming
+              the kind of person who can solve them.</strong>
+          </blockquote>
+        </section>
+
+        <section class="brutalist-card card-narrow" id="why-choose-ascend">
+          <h2>Why Choose Ascend?</h2>
+          <p>
+            Mastering DSA is not about solving the most problems - it's about
+            solving the right problems in the right order.
+          </p>
+          <h3>Structured & Focused</h3>
+          <p>
+            With nearly 400 carefully selected problems, Ascend is organized by
+            algorithms, data structures, and their underlying patterns. By focusing
+            on one pattern at a time, you build intuition and problem-solving skills
+            instead of simply collecting solved questions.
+          </p>
+          <h3>Learn Patterns, Not Answers</h3>
+          <p>
+            Most DSA questions are built upon recurring ideas. Ascend groups related
+            problems together to help you recognize patterns, not memorize answers.
+            Over time, those patterns become instinctive when tackling new problems.
+          </p>
+          <h3>Why LeetCode?</h3>
+          <p>
+            Every problem comes from <a href="https://leetcode.com" target="_blank" rel="noopener noreferrer"
+              style="color: blue;">LeetCode</a>.
+            While platforms like <a href="https://codeforces.com" target="_blank" rel="noopener noreferrer"
+              style="color: blue;">Codeforces</a>
+            and <a href="https://www.codechef.com" target="_blank" rel="noopener noreferrer"
+              style="color: blue;">CodeChef</a>
+            are excellent, LeetCode provides a cleaner experience and industry-relevant questions to build a strong
+            foundation.
+          </p>
+          <h3>Track Your Ascension</h3>
+          <p>
+            Monitor your progress, track completed problems, and watch your consistency
+            grow over time. Every solved question is a tangible step forward.
+          </p>
+        </section>
+      </div>
+
+      <!-- ABOUT ME SECTION -->
+      <section class="brutalist-card reach-me-card" id="reach-me">
+        <h2>Who Am I?</h2>
+        <p>
+          Hey, I'm <strong>Aditya Talreja</strong>.
+        </p>
+        <p>
+          I'm a DSA and Competitive Programming enthusiast, just like many of you.
+          My journey wasn't a smooth one. For a long time, I jumped between
+          resources, solved problems randomly, got stuck repeatedly, and made far
+          less progress than I expected.
+        </p>
+        <p>
+          Everything changed when I started approaching DSA in a structured way.
+          Instead of chasing problem counts, I focused on understanding patterns,
+          building intuition, and learning concepts in a logical order. The
+          improvement that followed was faster than anything I had experienced
+          before, and that experience ultimately inspired me to create Ascend.
+        </p>
+        <p>
+          Today, I'm still learning, still solving problems, and still trying to
+          get better every day. Ascend is simply a reflection of everything I've
+          learned throughout that journey - a collection of carefully selected
+          problems organized in the way I wish I had discovered much earlier.
+        </p>
+        <p>
+          If you have questions, suggestions, feedback, or simply want to connect,
+          feel free to reach out. I'd be happy to help and would love to hear from
+          you.
+        </p>
+        <p>
+          <em>After all, Ascend was built for learners, by a learner.</em>
+        </p>
+
+        <h3 style="text-align: center;">Find Me Online</h3>
+        <div class="social-links">
+          <a href="https://leetcode.com/u/adionlc/" target="_blank" rel="noopener noreferrer">LeetCode</a>
+          <a href="https://auth.geeksforgeeks.org/user/adiongfg/" target="_blank"
+            rel="noopener noreferrer">GeeksforGeeks</a>
+          <a href="https://codeforces.com/profile/Aditya-Talreja" target="_blank"
+            rel="noopener noreferrer">Codeforces</a>
+        </div>
+        <div class="social-links" style="margin-top: 1.5rem;">
+          <a href="https://www.linkedin.com/in/adityatalreja/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://github.com/Aditya-Talreja" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </section>
+    </div>
+    <div id="tab-2" class="tab-content">
+      <div class="sheet-algo-buttons" id="algoButtons">
+        <!-- Algorithm buttons rendered by JS -->
+      </div>
+      <div class="sheet-patterns" id="sheetPatterns">
+        <div class="sheet-placeholder">
+          <h2>Select an Algorithm</h2>
+          <p>Pick a topic above to view its patterns and problems.</p>
+        </div>
+      </div>
+    </div>
+    <div id="tab-3" class="tab-content">
+      <div id="statsAuthPrompt" class="brutalist-login-card">
+        <h2 class="login-title" id="authTitle">LOGIN</h2>
+        
+        <div class="form-group">
+          <label for="statsEmailInput">EMAIL</label>
+          <input type="email" id="statsEmailInput" class="brutalist-input" placeholder="your@email.com" autocomplete="off" />
+        </div>
+        
+        <div class="form-group">
+          <label for="statsPasswordInput">PASSWORD</label>
+          <input type="password" id="statsPasswordInput" class="brutalist-input" placeholder="••••••••" />
+        </div>
+        
+        <div id="authMessage" class="auth-message" style="display: none; margin-bottom: 1rem; font-weight: 800; padding: 0.5rem; border: 3px solid #000; text-align: center; box-shadow: 3px 3px 0 0 #000;"></div>
+
+        <button class="brutalist-login-btn" id="statsLoginBtn">SIGN IN</button>
+        
+        <div class="brutalist-divider">
+          <span class="divider-line"></span>
+          <span class="divider-text">OR</span>
+          <span class="divider-line"></span>
+        </div>
+        
+        <div class="social-login-row">
+          <button class="social-login-btn" type="button" id="googleLoginBtn" title="Sign in with Google">G</button>
+        </div>
+        
+        <div class="login-footer" id="authFooter">
+          Don't have an account? <a href="#" class="signup-link" id="authModeToggle">Sign up</a>
+        </div>
+      </div>
+
+      <div id="statsDashboard" style="display: none;">
+        <div class="stats-header-row">
+          <div class="brutalist-card stats-conquered">
+            <h2>PROBLEMS CONQUERED</h2>
+            <div class="stats-big-number">
+              <span id="totalSolved">0</span> <span class="stats-divider">/</span> <span id="totalProblems">0</span>
+            </div>
+          </div>
+
+          <div class="brutalist-card stats-ascended">
+            <h2>YOUR ASCENSION</h2>
+            <p style="margin-bottom: 0.75rem;">Download a personalized card showcasing your Ascension.</p><br>
+            <div class="ascension-row" style="margin-top: auto; display: flex; align-items: flex-end; gap: 2.5rem; flex-wrap: wrap;">
+              <div class="streak-stats-row" style="display: flex; gap: 1.5rem;">
+                <div>
+                  <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Current Streak</span>
+                  <span id="currentStreakVal" style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0 days</span>
+                </div>
+                <div>
+                  <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Max Streak</span>
+                  <span id="maxStreakVal" style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0 days</span>
+                </div>
+              </div>
+              <button class="brutalist-action-btn" id="downloadCardBtn" style="margin-top: 0; position: relative; top: 4px; left: 80px;">GENERATE CARD</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="heatmap-section">
+          <h2 class="heatmap-title">CONSISTENCY</h2>
+          <div class="heatmap-wrapper">
+            <div class="heatmap-container" id="heatmapContainer">
+              <!-- Heatmap squares rendered by JS -->
+            </div>
+          </div>
+          <div class="heatmap-legend">
+            <span>Less</span>
+            <div class="heatmap-cell legend-0"></div>
+            <div class="heatmap-cell legend-1"></div>
+            <div class="heatmap-cell legend-2"></div>
+            <div class="heatmap-cell legend-3"></div>
+            <div class="heatmap-cell legend-4"></div>
+            <span>More</span>
+          </div>
+        </div>
+
+        <div class="brutalist-card algo-stats-card">
+          <h2>ALGORITHM COMPLETION</h2>
+          <div class="algo-progress-container" id="algoProgressContainer">
+            <!-- Progress bars rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js?v=12"></script>
+  <script src="script.js?v=12"></script>
+</body>
+
+</html>
