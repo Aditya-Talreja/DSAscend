@@ -156,7 +156,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cache for checked problems
   window.ascendCheckedProblems = null;
 
-  async function checkAuth() {
+  let authCheckPromise = Promise.resolve();
+  const AUTH_REQUEST_TIMEOUT_MS = 15000;
+
+  function checkAuth() {
+    authCheckPromise = authCheckPromise.then(async () => {
+      try {
+        await doCheckAuth();
+      } catch (err) {
+        console.error("Error in checkAuth execution:", err);
+      }
+    });
+    return authCheckPromise;
+  }
+
+  async function runWithTimeout(promise, message) {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), AUTH_REQUEST_TIMEOUT_MS);
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  }
+
+  async function doCheckAuth() {
 
     let isLoggedIn = false;
     let username = 'CODER';
@@ -171,6 +192,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.ascendCheckedProblems === null) {
           try {
             window.ascendCheckedProblems = await AscendSupabase.fetchUserProgress();
+
+            // Merge guest local progress into Supabase in a single bulk transaction
+            const localProgress = loadLocalProgress();
+            if (Object.keys(localProgress).length > 0) {
+              console.log("Merging local progress into Supabase (bulk)...");
+              const recordsToSync = [];
+              for (const key in localProgress) {
+                const problemId = key.replace('p-', '');
+                if (localProgress[key].completed && !window.ascendCheckedProblems[key]) {
+                  recordsToSync.push({
+                    problemId: problemId,
+                    date: localProgress[key].date
+                  });
+                  // Update cache state locally
+                  window.ascendCheckedProblems[key] = localProgress[key];
+                }
+              }
+
+              if (recordsToSync.length > 0) {
+                try {
+                  await AscendSupabase.upsertProgressBulk(recordsToSync);
+                  console.log(`Successfully merged ${recordsToSync.length} guest records into Supabase!`);
+                } catch (e) {
+                  console.error("Failed to bulk sync guest progress:", e);
+                }
+              }
+              // Clear local progress once merged
+              localStorage.removeItem('ascend-checked');
+            }
           } catch (err) {
             console.error("Failed to load user progress:", err);
             // Fallback to local storage
@@ -207,6 +257,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Always update stats to render with newly loaded progress
     if (typeof updateStats === 'function') updateStats();
+
+    // Refresh active sheet patterns to match new progress
+    const activeAlgoBtn = document.querySelector('.algo-btn.active');
+    if (activeAlgoBtn) {
+      activeAlgoBtn.click();
+    }
   }
 
   function loadLocalProgress() {
@@ -254,73 +310,64 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Set button loading state
     statsLoginBtn.classList.add('btn-loading');
     if (authMessage) authMessage.style.display = "none";
 
-    // If Supabase is configured, use it
-    if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
-      try {
-        if (currentAuthMode === 'login') {
-          await AscendSupabase.signIn(email, password);
-          if (authMessage) {
-            authMessage.textContent = "Signed in successfully!";
-            authMessage.className = "auth-message success";
-            authMessage.style.display = "block";
-          }
-        } else {
-          await AscendSupabase.signUp(email, password);
-          if (authMessage) {
-            authMessage.textContent = "Signup successful! Check your email to verify (if enabled).";
-            authMessage.className = "auth-message success";
-            authMessage.style.display = "block";
-          }
+    try {
+      if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+        const actionLabel = currentAuthMode === 'login' ? 'signing in' : 'creating your account';
+        const authPromise = currentAuthMode === 'login'
+          ? AscendSupabase.signIn(email, password)
+          : AscendSupabase.signUp(email, password);
+
+        await runWithTimeout(authPromise, `Timed out while ${actionLabel}. Please check your connection and try again.`);
+
+        if (authMessage) {
+          authMessage.textContent = currentAuthMode === 'login'
+            ? "Signed in successfully!"
+            : "Signup successful! Check your email to verify (if enabled).";
+          authMessage.className = "auth-message success";
+          authMessage.style.display = "block";
         }
-        
-        // Wait briefly for user visual feedback then check auth
+
         setTimeout(async () => {
-          statsLoginBtn.classList.remove('btn-loading');
           if (statsEmailInput) statsEmailInput.value = '';
           if (statsPasswordInput) statsPasswordInput.value = '';
           if (authMessage) authMessage.style.display = "none";
-          // Clear progress cache to force fetch new user's progress
           window.ascendCheckedProblems = null;
           await checkAuth();
         }, 1200);
+      } else {
+        setTimeout(() => {
+          const username = email.includes('@') ? email.split('@')[0] : email;
+          localStorage.setItem('ascend-user', JSON.stringify({ username, loggedIn: true }));
+          if (statsEmailInput) statsEmailInput.value = '';
+          if (statsPasswordInput) statsPasswordInput.value = '';
+          window.ascendCheckedProblems = null;
+          checkAuth();
+        }, 500);
+      }
+    } catch (err) {
+      if (authMessage) {
+        const message = err?.message || "An authentication error occurred.";
+        if (message.toLowerCase().includes("invalid login credentials") && currentAuthMode === 'login') {
+          authMessage.innerHTML = 'Account not found or password incorrect. Don\'t have an account? <a href="#" id="auth-switch-helper" style="color: blue; text-decoration: underline;">Sign up here</a>';
+          authMessage.className = "auth-message error";
+          authMessage.style.display = "block";
 
-      } catch (err) {
-        statsLoginBtn.classList.remove('btn-loading');
-        if (authMessage) {
-          if (err.message && err.message.toLowerCase().includes("invalid login credentials") && currentAuthMode === 'login') {
-            authMessage.innerHTML = 'Account not found or password incorrect. Don\'t have an account? <a href="#" id="auth-switch-helper" style="color: blue; text-decoration: underline;">Sign up here</a>';
-            authMessage.className = "auth-message error";
-            authMessage.style.display = "block";
-            
-            // Add click listener to the helper link
-            document.getElementById('auth-switch-helper')?.addEventListener('click', (e) => {
-              e.preventDefault();
-              document.getElementById('authModeToggle')?.click();
-              authMessage.style.display = "none";
-            });
-          } else {
-            authMessage.textContent = err.message || "An authentication error occurred.";
-            authMessage.className = "auth-message error";
-            authMessage.style.display = "block";
-          }
+          document.getElementById('auth-switch-helper')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('authModeToggle')?.click();
+            authMessage.style.display = "none";
+          });
+        } else {
+          authMessage.textContent = message;
+          authMessage.className = "auth-message error";
+          authMessage.style.display = "block";
         }
       }
-    } else {
-      // Local storage fallback login
-      setTimeout(() => {
-        statsLoginBtn.classList.remove('btn-loading');
-        const username = email.includes('@') ? email.split('@')[0] : email;
-        localStorage.setItem('ascend-user', JSON.stringify({ username, loggedIn: true }));
-        if (statsEmailInput) statsEmailInput.value = '';
-        if (statsPasswordInput) statsPasswordInput.value = '';
-        // Clear cache to reload progress
-        window.ascendCheckedProblems = null;
-        checkAuth();
-      }, 500);
+    } finally {
+      statsLoginBtn.classList.remove('btn-loading');
     }
   });
 
@@ -328,9 +375,12 @@ document.addEventListener('DOMContentLoaded', () => {
   googleLoginBtn?.addEventListener('click', async () => {
     if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
       try {
-        await AscendSupabase.signInWithGoogle();
+        await runWithTimeout(
+          AscendSupabase.signInWithGoogle(),
+          'Timed out while starting Google sign-in. Please check your connection and try again.'
+        );
       } catch (err) {
-        alert("Google Sign In failed: " + err.message);
+        alert("Google Sign In failed: " + (err?.message || "Unknown error"));
       }
     } else {
       alert("Supabase is not configured yet.");
@@ -474,22 +524,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.ascendCheckedProblems = data;
     if (typeof updateStats === 'function') updateStats();
 
-    if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+    const isConfigured = window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured();
+
+    if (isConfigured) {
       AscendSupabase.getSession().then(session => {
         if (session && session.user && problemId) {
           if (isChecked) {
             AscendSupabase.upsertProgress(problemId, getLocalDateString()).catch(err => {
               console.error("Failed to sync progress to Supabase:", err);
+              alert("Failed to sync progress to Supabase:\n" + (err.message || JSON.stringify(err)));
             });
           } else {
             AscendSupabase.deleteProgress(problemId).catch(err => {
               console.error("Failed to sync delete to Supabase:", err);
+              alert("Failed to sync delete to Supabase:\n" + (err.message || JSON.stringify(err)));
             });
           }
         } else {
-          // If logged out but Supabase is configured, also save locally
           localStorage.setItem('ascend-checked', JSON.stringify(data));
         }
+      }).catch(err => {
+        console.error("saveCheckedProblems - Error getting session:", err);
+        localStorage.setItem('ascend-checked', JSON.stringify(data));
       });
     } else {
       localStorage.setItem('ascend-checked', JSON.stringify(data));
@@ -725,28 +781,39 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Generate last 365 days approximately
+    // Today at midnight UTC (based on local date component)
     const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const localToday = new Date(today.getTime() - offset);
+    const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
     
-    // Start from 52 weeks ago, aligned to Sunday
-    const startDate = new Date(localToday);
-    startDate.setDate(localToday.getDate() - (52 * 7));
-    while (startDate.getDay() !== 0) {
-      startDate.setDate(startDate.getDate() - 1);
-    }
+    // Start date is exactly 370 days ago in UTC representation (53 weeks * 7 days - 1 = 370 days)
+    const startDateUTC = todayUTC - (370 * 24 * 60 * 60 * 1000);
+    const endDateUTC = todayUTC;
 
     // Generate grid
-    let current = new Date(startDate);
-    while (current <= localToday) {
-      const dStr = current.toISOString().split('T')[0];
+    let currentTime = startDateUTC;
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const totalDays = Math.floor((endDateUTC - startDateUTC) / oneDayMs);
+
+    let dayIndex = 0;
+    while (currentTime <= endDateUTC) {
+      const currentDate = new Date(currentTime);
+      const year = currentDate.getUTCFullYear();
+      const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getUTCDate()).padStart(2, '0');
+      const dStr = `${year}-${month}-${day}`;
+      
       const count = dateCounts[dStr] || 0;
       
       const cell = document.createElement('div');
       cell.className = 'heatmap-cell';
       cell.setAttribute('data-date', dStr);
       cell.setAttribute('data-count', count);
+
+      // Explicit placement so the most recent day is anchored to the bottom-right.
+      const col = Math.floor(dayIndex / 7);
+      const row = dayIndex % 7;
+      cell.style.gridColumn = `${col + 1}`;
+      cell.style.gridRow = `${row + 1}`;
 
       if (count > 0) {
         if (count >= 4) cell.classList.add('legend-4');
@@ -757,19 +824,19 @@ document.addEventListener('DOMContentLoaded', () => {
         cell.classList.add('legend-0');
       }
 
-      // Add edge-alignment classes for tooltips to prevent edge clipping
-      const daysFromStart = Math.round((current - startDate) / (24 * 60 * 60 * 1000));
-      const daysToEnd = Math.round((localToday - current) / (24 * 60 * 60 * 1000));
-      if (daysFromStart < 14) {
+      // Add edge-alignment classes for tooltips to prevent edge clipping.
+      if (dayIndex < 14) {
         cell.classList.add('tooltip-left-align');
-      } else if (daysToEnd < 14) {
+      } else if ((totalDays - dayIndex) < 14) {
         cell.classList.add('tooltip-right-align');
       }
 
       container.appendChild(cell);
       
-      current.setDate(current.getDate() + 1);
+      currentTime += oneDayMs;
+      dayIndex++;
     }
+    console.log("Heatmap rendered with exactly", container.children.length, "cells.");
   }
 
   function calculateStreaks(dateCounts) {
@@ -928,17 +995,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const localToday = new Date(today.getTime() - offset);
+    const todayCard = new Date();
+    const todayCardUTC = Date.UTC(todayCard.getFullYear(), todayCard.getMonth(), todayCard.getDate());
     
-    const startDate = new Date(localToday);
-    startDate.setDate(localToday.getDate() - (52 * 7));
-    while (startDate.getDay() !== 0) {
-      startDate.setDate(startDate.getDate() - 1);
-    }
+    // Start date is exactly 370 days ago (53 weeks * 7 days - 1 = 370 days)
+    // so that today is always the 371st cell (placed at the bottom-right corner)
+    const startDateUTC = todayCardUTC - (370 * 24 * 60 * 60 * 1000);
+    const endDateUTC = todayCardUTC;
     
-    let current = new Date(startDate);
+    let currentTime = startDateUTC;
+    const oneDayMs = 24 * 60 * 60 * 1000;
     let cellIndex = 0;
     const cellW = 8;
     const cellH = 8;
@@ -952,8 +1018,13 @@ document.addEventListener('DOMContentLoaded', () => {
       4: '#ccff00'
     };
     
-    while (current <= localToday) {
-      const dStr = current.toISOString().split('T')[0];
+    while (currentTime <= endDateUTC) {
+      const currentDate = new Date(currentTime);
+      const year = currentDate.getUTCFullYear();
+      const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getUTCDate()).padStart(2, '0');
+      const dStr = `${year}-${month}-${day}`;
+      
       const count = dateCounts[dStr] || 0;
       
       let level = 0;
@@ -977,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       cellIndex++;
-      current.setDate(current.getDate() + 1);
+      currentTime += oneDayMs;
     }
     
     // Legend

@@ -107,12 +107,14 @@ async function fetchUserProgress() {
 
   // Convert list of rows to map format: { "p-123": { completed: true, date: "YYYY-MM-DD" } }
   const progressMap = {};
-  data.forEach(row => {
-    progressMap[`p-${row.problem_id}`] = {
-      completed: row.completed,
-      date: row.date
-    };
-  });
+  if (Array.isArray(data)) {
+    data.forEach(row => {
+      progressMap[`p-${row.problem_id}`] = {
+        completed: row.completed,
+        date: row.date
+      };
+    });
+  }
   return progressMap;
 }
 
@@ -123,19 +125,51 @@ async function upsertProgress(problemId, date) {
   const session = await getSession();
   if (!session) throw new Error("Must be logged in to save progress.");
 
+  const parsedId = parseInt(problemId);
+  if (isNaN(parsedId)) {
+    console.error(`Invalid problem ID: ${problemId}`);
+    return;
+  }
+
   const { error } = await client
     .from('user_progress')
     .upsert({
       user_id: session.user.id,
-      problem_id: parseInt(problemId),
+      problem_id: parsedId,
       completed: true,
       date: date
-    }, {
-      onConflict: 'user_id,problem_id'
     });
 
   if (error) {
     console.error(`Error saving progress for problem ${problemId}:`, error);
+    throw error;
+  }
+}
+
+async function upsertProgressBulk(records) {
+  const client = initSupabase();
+  if (!client) return;
+
+  const session = await getSession();
+  if (!session) throw new Error("Must be logged in to save progress.");
+
+  if (!records || !Array.isArray(records) || records.length === 0) return;
+
+  const formattedRecords = records.map(rec => ({
+    user_id: session.user.id,
+    problem_id: parseInt(rec.problemId),
+    completed: true,
+    date: rec.date || new Date().toISOString().split('T')[0]
+  })).filter(rec => !isNaN(rec.problem_id));
+
+  if (formattedRecords.length === 0) return;
+
+  const { error } = await client
+    .from('user_progress')
+    .upsert(formattedRecords);
+
+  if (error) {
+    console.error("Error bulk saving progress:", error);
     throw error;
   }
 }
@@ -147,11 +181,17 @@ async function deleteProgress(problemId) {
   const session = await getSession();
   if (!session) throw new Error("Must be logged in to delete progress.");
 
+  const parsedId = parseInt(problemId);
+  if (isNaN(parsedId)) {
+    console.error(`Invalid problem ID: ${problemId}`);
+    return;
+  }
+
   const { error } = await client
     .from('user_progress')
     .delete()
     .eq('user_id', session.user.id)
-    .eq('problem_id', parseInt(problemId));
+    .eq('problem_id', parsedId);
 
   if (error) {
     console.error(`Error deleting progress for problem ${problemId}:`, error);
@@ -171,5 +211,6 @@ window.AscendSupabase = {
   onAuthStateChange,
   fetchUserProgress,
   upsertProgress,
+  upsertProgressBulk,
   deleteProgress
 };
