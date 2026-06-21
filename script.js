@@ -153,6 +153,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Brutalist Toast Notification Helper
+  function showToast(message, type = 'success') {
+    // Remove existing toast if any
+    const existing = document.querySelector('.brutalist-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `brutalist-toast ${type}`;
+    toast.innerHTML = `
+      <span>${message}</span>
+      <span class="toast-close">&times;</span>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds
+    const timeoutId = setTimeout(() => {
+      toast.style.animation = 'fadeOutToast 0.3s forwards';
+      toast.addEventListener('animationend', () => {
+        toast.remove();
+      });
+    }, 5000);
+
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+      clearTimeout(timeoutId);
+      toast.remove();
+    });
+  }
+
   // Cache for checked problems
   window.ascendCheckedProblems = null;
 
@@ -328,23 +357,54 @@ document.addEventListener('DOMContentLoaded', () => {
           ? AscendSupabase.signIn(email, password)
           : AscendSupabase.signUp(email, password);
 
-        await runWithTimeout(authPromise, `Timed out while ${actionLabel}. Please check your connection and try again.`);
+        const resData = await runWithTimeout(authPromise, `Timed out while ${actionLabel}. Please check your connection and try again.`);
+
+        let isEmailVerificationRequired = false;
+        if (currentAuthMode === 'signup') {
+          if (resData && !resData.session) {
+            isEmailVerificationRequired = true;
+          }
+        }
 
         if (authMessage) {
-          authMessage.textContent = currentAuthMode === 'login'
-            ? "Signed in successfully!"
-            : "Signup successful! Check your email to verify (if enabled).";
-          authMessage.className = "auth-message success";
+          if (currentAuthMode === 'login') {
+            authMessage.textContent = "Signed in successfully!";
+            authMessage.className = "auth-message success";
+            showToast("Signed in successfully!", "success");
+          } else {
+            if (isEmailVerificationRequired) {
+              authMessage.textContent = "A verification email has been sent! Please confirm your email before signing in.";
+              authMessage.className = "auth-message info";
+              showToast("Verification link sent! Check your inbox.", "info");
+            } else {
+              authMessage.textContent = "Signed up and logged in successfully!";
+              authMessage.className = "auth-message success";
+              showToast("Signed up successfully!", "success");
+            }
+          }
           authMessage.style.display = "block";
         }
 
-        setTimeout(async () => {
-          if (statsEmailInput) statsEmailInput.value = '';
+        if (isEmailVerificationRequired) {
           if (statsPasswordInput) statsPasswordInput.value = '';
-          if (authMessage) authMessage.style.display = "none";
-          window.ascendCheckedProblems = null;
-          await checkAuth();
-        }, 1200);
+          // Reset button state
+          statsLoginBtn.classList.remove('btn-loading');
+          // Switch to login mode automatically for their convenience
+          currentAuthMode = 'login';
+          if (authTitle) authTitle.textContent = 'LOGIN';
+          if (statsLoginBtn) statsLoginBtn.textContent = 'SIGN IN';
+          if (authModeToggle) authModeToggle.textContent = 'Sign up';
+          const textNode = authModeToggle?.previousSibling;
+          if (textNode) textNode.textContent = "Don't have an account? ";
+        } else {
+          setTimeout(async () => {
+            if (statsEmailInput) statsEmailInput.value = '';
+            if (statsPasswordInput) statsPasswordInput.value = '';
+            if (authMessage) authMessage.style.display = "none";
+            window.ascendCheckedProblems = null;
+            await checkAuth();
+          }, 1200);
+        }
       } else {
         setTimeout(() => {
           const username = email.includes('@') ? email.split('@')[0] : email;
@@ -352,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (statsEmailInput) statsEmailInput.value = '';
           if (statsPasswordInput) statsPasswordInput.value = '';
           window.ascendCheckedProblems = null;
+          showToast("Logged in successfully (guest)!", "success");
           checkAuth();
         }, 500);
       }
@@ -362,20 +423,29 @@ document.addEventListener('DOMContentLoaded', () => {
           authMessage.innerHTML = 'Account not found or password incorrect. Don\'t have an account? <a href="#" id="auth-switch-helper" style="color: blue; text-decoration: underline;">Sign up here</a>';
           authMessage.className = "auth-message error";
           authMessage.style.display = "block";
+          showToast("Invalid credentials", "error");
 
           document.getElementById('auth-switch-helper')?.addEventListener('click', (e) => {
             e.preventDefault();
             document.getElementById('authModeToggle')?.click();
             authMessage.style.display = "none";
           });
+        } else if (message.toLowerCase().includes("email not confirmed") || message.toLowerCase().includes("confirm your email")) {
+          authMessage.textContent = "Please confirm your email address. Check your inbox for the verification link.";
+          authMessage.className = "auth-message error";
+          authMessage.style.display = "block";
+          showToast("Email not confirmed. Check inbox.", "error");
         } else {
           authMessage.textContent = message;
           authMessage.className = "auth-message error";
           authMessage.style.display = "block";
+          showToast(message, "error");
         }
       }
     } finally {
-      statsLoginBtn.classList.remove('btn-loading');
+      if (statsLoginBtn.classList.contains('btn-loading')) {
+        statsLoginBtn.classList.remove('btn-loading');
+      }
     }
   });
 
@@ -388,10 +458,10 @@ document.addEventListener('DOMContentLoaded', () => {
           'Timed out while starting Google sign-in. Please check your connection and try again.'
         );
       } catch (err) {
-        alert("Google Sign In failed: " + (err?.message || "Unknown error"));
+        showToast("Google Sign In failed: " + (err?.message || "Unknown error"), "error");
       }
     } else {
-      alert("Supabase is not configured yet.");
+      showToast("Supabase is not configured yet.", "error");
     }
   });
 
@@ -418,11 +488,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
       try {
         await AscendSupabase.signOut();
+        showToast("Signed out successfully.", "info");
       } catch (err) {
         console.error("Sign out error:", err);
+        showToast("Sign out error: " + (err?.message || "Unknown error"), "error");
       }
     } else {
       localStorage.removeItem('ascend-user');
+      showToast("Signed out successfully (guest).", "info");
     }
     
     // Clear credentials/cache
@@ -458,6 +531,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // Trigger reload of progress
         window.ascendCheckedProblems = null;
       }
+
+      // Check if we just signed in via redirect (Google OAuth or email verification)
+      if (event === 'SIGNED_IN') {
+        const hash = window.location.hash;
+        if (hash && (hash.includes('access_token=') || hash.includes('id_token='))) {
+          if (hash.includes('type=signup')) {
+            showToast("Email verified successfully! Welcome to Ascend.", "success");
+          } else {
+            showToast("Signed in successfully via Google!", "success");
+          }
+          // Clean the hash from the URL
+          history.replaceState(null, null, window.location.pathname + window.location.search);
+        }
+      }
+
       await checkAuth();
     });
   } else {
@@ -601,12 +689,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (isChecked) {
             AscendSupabase.upsertProgress(problemId, getLocalDateString()).catch(err => {
               console.error("Failed to sync progress to Supabase:", err);
-              alert("Failed to sync progress to Supabase:\n" + (err.message || JSON.stringify(err)));
+              showToast("Failed to sync progress to Supabase: " + (err.message || "Unknown error"), "error");
             });
           } else {
             AscendSupabase.deleteProgress(problemId).catch(err => {
               console.error("Failed to sync delete to Supabase:", err);
-              alert("Failed to sync delete to Supabase:\n" + (err.message || JSON.stringify(err)));
+              showToast("Failed to sync delete to Supabase: " + (err.message || "Unknown error"), "error");
             });
           }
         } else {

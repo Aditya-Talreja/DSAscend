@@ -19,7 +19,13 @@ function initSupabase() {
 
   // Create client (supabase comes from global script tag)
   if (typeof supabase !== 'undefined') {
-    supabaseClient = supabase.createClient(url, key);
+    supabaseClient = supabase.createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
     return supabaseClient;
   } else {
     console.error("Supabase CDN script is not loaded yet.");
