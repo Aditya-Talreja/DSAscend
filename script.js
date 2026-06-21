@@ -246,7 +246,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (displayUsername) displayUsername.textContent = '@' + username;
       
       if (statsAuthPrompt) statsAuthPrompt.style.display = 'none';
-      if (statsDashboard) statsDashboard.style.display = 'block';
+      if (statsDashboard) {
+        statsDashboard.style.display = 'block';
+        const wrapper = document.querySelector('.heatmap-wrapper');
+        if (wrapper) {
+          setTimeout(() => {
+            wrapper.scrollLeft = wrapper.scrollWidth;
+          }, 100);
+        }
+      }
     } else {
       if (loginBtn) loginBtn.style.display = 'block';
       if (userProfileContainer) userProfileContainer.style.display = 'none';
@@ -459,6 +467,51 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tab Logic
   const tabs = document.querySelectorAll('.tab-btn');
   const contents = document.querySelectorAll('.tab-content');
+  const navbar = document.querySelector('.navbar');
+  const mobileNavToggle = document.getElementById('mobileNavToggle');
+  const navCenter = document.querySelector('.nav-center');
+
+  function syncMobileNavbarState() {
+    const isMobile = window.innerWidth <= 768;
+
+    if (!isMobile) {
+      if (navCenter) navCenter.style.display = '';
+      if (mobileNavToggle) mobileNavToggle.style.display = '';
+      return;
+    }
+
+    if (mobileNavToggle) {
+      mobileNavToggle.style.display = 'flex';
+    }
+
+    if (navCenter) {
+      if (navbar && navbar.classList.contains('open')) {
+        navCenter.style.display = 'flex';
+      } else {
+        navCenter.style.display = 'none';
+      }
+    }
+  }
+
+  if (mobileNavToggle && navbar && navCenter) {
+    syncMobileNavbarState();
+
+    mobileNavToggle.addEventListener('click', () => {
+      const isOpen = navbar.classList.toggle('open');
+      mobileNavToggle.setAttribute('aria-expanded', String(isOpen));
+      navCenter.style.display = isOpen && window.innerWidth <= 768 ? 'flex' : 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!navbar.contains(e.target) && navbar.classList.contains('open')) {
+        navbar.classList.remove('open');
+        mobileNavToggle.setAttribute('aria-expanded', 'false');
+        navCenter.style.display = 'none';
+      }
+    });
+
+    window.addEventListener('resize', syncMobileNavbarState);
+  }
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -474,6 +527,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetContent = document.getElementById(targetId);
       if (targetContent) {
         targetContent.classList.add('active');
+      }
+
+      if (targetId === 'tab-3') {
+        const wrapper = document.querySelector('.heatmap-wrapper');
+        if (wrapper) {
+          setTimeout(() => {
+            wrapper.scrollLeft = wrapper.scrollWidth;
+          }, 50);
+        }
+      }
+
+      if (window.innerWidth <= 768 && navbar && navbar.classList.contains('open')) {
+        navbar.classList.remove('open');
+        if (mobileNavToggle) {
+          mobileNavToggle.setAttribute('aria-expanded', 'false');
+        }
       }
     });
   });
@@ -837,6 +906,14 @@ document.addEventListener('DOMContentLoaded', () => {
       dayIndex++;
     }
     console.log("Heatmap rendered with exactly", container.children.length, "cells.");
+
+    // Scroll the heatmap to the right by default on mobile so the latest dates are visible first
+    const wrapper = document.querySelector('.heatmap-wrapper');
+    if (wrapper) {
+      setTimeout(() => {
+        wrapper.scrollLeft = wrapper.scrollWidth;
+      }, 50);
+    }
   }
 
   function calculateStreaks(dateCounts) {
