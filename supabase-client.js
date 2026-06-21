@@ -4,6 +4,7 @@ const SUPABASE_URL = "https://rxfixvwqtnvulretgmlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4Zml4dndxdG52dWxyZXRnbWxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NTk2MzYsImV4cCI6MjA5NzUzNTYzNn0.CQFn58wkgnQLx9I0CL2EFmF9C_98ufMO6hBktsczoIY";
 
 let supabaseClient = null;
+let currentSession = undefined;
 
 // Initialize Supabase Client
 function initSupabase() {
@@ -23,9 +24,17 @@ function initSupabase() {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: window.localStorage
       }
     });
+
+    // Listen internally to sync auth state changes synchronously
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      currentSession = session;
+    });
+
     return supabaseClient;
   } else {
     console.error("Supabase CDN script is not loaded yet.");
@@ -73,16 +82,21 @@ async function signOut() {
   if (!client) return;
   const { error } = await client.auth.signOut();
   if (error) throw error;
+  currentSession = null;
 }
 
 async function getSession() {
+  if (currentSession !== undefined) return currentSession;
+
   const client = initSupabase();
   if (!client) return null;
   const { data: { session }, error } = await client.auth.getSession();
   if (error) {
     console.error("Error getting session:", error);
+    currentSession = null;
     return null;
   }
+  currentSession = session;
   return session;
 }
 

@@ -182,16 +182,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function hasAuthTokenHash() {
+    const hash = window.location.hash || '';
+    return hash.includes('access_token=') || hash.includes('id_token=') || hash.includes('refresh_token=') || hash.includes('provider_token=');
+  }
+
+  function cleanupAuthHash() {
+    if (!hasAuthTokenHash()) return false;
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.hash = '';
+    history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`);
+    return true;
+  }
+
   // Cache for checked problems
   window.ascendCheckedProblems = null;
 
   let authCheckPromise = Promise.resolve();
-  const AUTH_REQUEST_TIMEOUT_MS = 15000;
+  const AUTH_REQUEST_TIMEOUT_MS = 60000;
 
-  function checkAuth() {
+  function checkAuth(session = undefined) {
     authCheckPromise = authCheckPromise.then(async () => {
       try {
-        await doCheckAuth();
+        await doCheckAuth(session);
       } catch (err) {
         console.error("Error in checkAuth execution:", err);
       }
@@ -206,13 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return await Promise.race([promise, timeoutPromise]);
   }
 
-  async function doCheckAuth() {
+  async function doCheckAuth(passedSession = undefined) {
 
     let isLoggedIn = false;
     let username = 'CODER';
 
     if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
-      const session = await AscendSupabase.getSession();
+      const session = passedSession !== undefined ? passedSession : await AscendSupabase.getSession();
       if (session && session.user) {
         isLoggedIn = true;
         username = session.user.email.split('@')[0];
@@ -523,30 +537,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set up auth state change listener if Supabase is configured
   if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
-    AscendSupabase.onAuthStateChange(async (event, session) => {
+    // IMPORTANT: this callback must stay synchronous and must NOT call any
+    // other supabase.auth.* method (directly or indirectly) before it returns.
+    // Supabase's auth client holds an internal lock while dispatching this
+    // event; calling back into it (e.g. via getSession()) from inside this
+    // callback causes the call to hang forever with no error
+    // (see https://supabase.com/docs/guides/troubleshooting/why-is-my-supabase-api-call-not-returning-PGzXw0).
+    // All real work is deferred with setTimeout so it runs after the lock
+    // has been released.
+    AscendSupabase.onAuthStateChange((event, session) => {
       console.log("Supabase Auth Event:", event);
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-        window.ascendCheckedProblems = null;
-      } else {
+
+      setTimeout(async () => {
+        const currentHash = window.location.hash || '';
+        const isSignupFlow = currentHash.includes('type=signup');
+
+        // Always clean auth tokens from the URL once the session is available.
+        const hadAuthHash = cleanupAuthHash();
+
         // Trigger reload of progress
         window.ascendCheckedProblems = null;
-      }
 
-      // Check if we just signed in via redirect (Google OAuth or email verification)
-      if (event === 'SIGNED_IN') {
-        const hash = window.location.hash;
-        if (hash && (hash.includes('access_token=') || hash.includes('id_token='))) {
-          if (hash.includes('type=signup')) {
+        // Show a success message only for a real sign-in flow.
+        if (event === 'SIGNED_IN' && session) {
+          if (hadAuthHash && isSignupFlow) {
             showToast("Email verified successfully! Welcome to Ascend.", "success");
-          } else {
-            showToast("Signed in successfully via Google!", "success");
+          } else if (hadAuthHash) {
+            showToast("Signed in successfully!", "success");
           }
-          // Clean the hash from the URL
-          history.replaceState(null, null, window.location.pathname + window.location.search);
         }
-      }
 
-      await checkAuth();
+        await checkAuth(session);
+      }, 0);
     });
   } else {
     checkAuth();
