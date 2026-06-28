@@ -166,10 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toast = document.createElement('div');
     toast.className = `brutalist-toast ${type}`;
-    toast.innerHTML = `
-      <span>${message}</span>
-      <span class="toast-close">&times;</span>
-    `;
+    // Use textContent for message to prevent XSS from API error strings
+    const msgSpan = document.createElement('span');
+    msgSpan.textContent = message;
+    const closeSpan = document.createElement('span');
+    closeSpan.className = 'toast-close';
+    closeSpan.innerHTML = '&times;';
+    toast.appendChild(msgSpan);
+    toast.appendChild(closeSpan);
 
     document.body.appendChild(toast);
 
@@ -444,11 +448,16 @@ document.addEventListener('DOMContentLoaded', () => {
           authMessage.style.display = "block";
           showToast("Invalid credentials", "error");
 
-          document.getElementById('auth-switch-helper')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('authModeToggle')?.click();
-            authMessage.style.display = "none";
-          });
+          // Use onclick (not addEventListener) to prevent stacking duplicate listeners
+          // on repeated failed login attempts.
+          const switchHelper = document.getElementById('auth-switch-helper');
+          if (switchHelper) {
+            switchHelper.onclick = (e) => {
+              e.preventDefault();
+              document.getElementById('authModeToggle')?.click();
+              authMessage.style.display = "none";
+            };
+          }
         } else if (message.toLowerCase().includes("email not confirmed") || message.toLowerCase().includes("confirm your email")) {
           authMessage.textContent = "Please confirm your email address. Check your inbox for the verification link.";
           authMessage.className = "auth-message error";
@@ -967,11 +976,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Bind download card button
+    // Resolve username: prefer authenticated Supabase session, then localStorage guest, then default.
     const downloadCardBtn = document.getElementById('downloadCardBtn');
     if (downloadCardBtn) {
-      downloadCardBtn.onclick = () => {
-        const user = JSON.parse(localStorage.getItem('ascend-user') || '{"username": "CODER"}');
-        generateAscensionCard(user.username, totalSolved, totalProblems, streaks, checkedData);
+      downloadCardBtn.onclick = async () => {
+        let cardUsername = 'CODER';
+        if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+          const session = await AscendSupabase.getSession();
+          if (session && session.user && session.user.email) {
+            cardUsername = session.user.email.split('@')[0];
+          }
+        }
+        if (cardUsername === 'CODER') {
+          const user = JSON.parse(localStorage.getItem('ascend-user') || '{"username": "CODER"}');
+          cardUsername = user.username || 'CODER';
+        }
+        generateAscensionCard(cardUsername, totalSolved, totalProblems, streaks, checkedData);
       };
     }
 
@@ -1073,7 +1093,6 @@ document.addEventListener('DOMContentLoaded', () => {
       currentTime += oneDayMs;
       dayIndex++;
     }
-    console.log("Heatmap rendered with exactly", container.children.length, "cells.");
 
     // Scroll the heatmap to the right by default on mobile so the latest dates are visible first
     const wrapper = document.querySelector('.heatmap-wrapper');
@@ -1357,19 +1376,25 @@ document.addEventListener('DOMContentLoaded', () => {
       link.click();
     };
 
-    // Close on overlay backdrop click
+    // Close on overlay backdrop click (safe: .onclick replaces on each call)
     overlay.onclick = (e) => {
       if (e.target === overlay || e.target.classList.contains('floating-card-container')) {
         overlay.classList.remove('show');
       }
     };
 
-    const escHandler = (e) => {
+    // Escape key: remove any previously attached handler before adding a fresh one
+    // to prevent accumulation of stale handlers on repeated card generations.
+    if (overlay._escHandler) {
+      document.removeEventListener('keydown', overlay._escHandler);
+    }
+    overlay._escHandler = (e) => {
       if (e.key === 'Escape') {
         overlay.classList.remove('show');
-        document.removeEventListener('keydown', escHandler);
+        document.removeEventListener('keydown', overlay._escHandler);
+        overlay._escHandler = null;
       }
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', overlay._escHandler);
   }
 });

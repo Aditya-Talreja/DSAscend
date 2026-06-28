@@ -1652,11 +1652,11 @@ body {
   align-items: center;
   backdrop-filter: blur(6px);
   padding: 1.5rem;
-  animation: brutalistFade 0.2s ease;
 }
 
 .card-modal-overlay.show {
   display: flex;
+  animation: brutalistFade 0.2s ease;
 }
 
 .floating-card-container {
@@ -1723,11 +1723,11 @@ body {
   align-items: center;
   backdrop-filter: blur(6px);
   padding: 1.5rem;
-  animation: brutalistFade 0.2s ease;
 }
 
 .reset-modal-overlay.show {
   display: flex;
+  animation: brutalistFade 0.2s ease;
 }
 
 .reset-modal-content {
