@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const profileBtn = document.getElementById('profileBtn');
   const profileDropdown = document.getElementById('profileDropdown');
 
+  const resetProgressBtn = document.getElementById('resetProgressBtn');
+  const resetModalOverlay = document.getElementById('resetModalOverlay');
+  const cancelResetBtn = document.getElementById('cancelResetBtn');
+  const confirmResetBtn = document.getElementById('confirmResetBtn');
+
   const statsAuthPrompt = document.getElementById('statsAuthPrompt');
   const statsDashboard = document.getElementById('statsDashboard');
   const statsEmailInput = document.getElementById('statsEmailInput');
@@ -230,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (session && session.user) {
         isLoggedIn = true;
         username = session.user.email.split('@')[0];
-        
+
         // Fetch checked problems from Supabase if cache is not populated
         if (window.ascendCheckedProblems === null) {
           try {
@@ -287,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (loginBtn) loginBtn.style.display = 'none';
       if (userProfileContainer) userProfileContainer.style.display = 'block';
       if (displayUsername) displayUsername.textContent = '@' + username;
-      
+
       if (statsAuthPrompt) statsAuthPrompt.style.display = 'none';
       if (statsDashboard) {
         statsDashboard.style.display = 'block';
@@ -301,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       if (loginBtn) loginBtn.style.display = 'block';
       if (userProfileContainer) userProfileContainer.style.display = 'none';
-      
+
       if (statsAuthPrompt) statsAuthPrompt.style.display = 'block';
       if (statsDashboard) statsDashboard.style.display = 'none';
     }
@@ -320,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = JSON.parse(localStorage.getItem('ascend-checked') || '{}');
       if (typeof data !== 'object' || data === null) return {};
-      
+
       // Migrate old format (true) to new format ({completed: true, date: today})
       let migrated = false;
       for (const key in data) {
@@ -332,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (migrated) {
         localStorage.setItem('ascend-checked', JSON.stringify(data));
       }
-      
+
       return data;
     } catch { return {}; }
   }
@@ -498,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   logoutBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
-    
+
     if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
       try {
         await AscendSupabase.signOut();
@@ -511,13 +516,66 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.removeItem('ascend-user');
       showToast("Signed out successfully (guest).", "info");
     }
-    
+
     // Clear credentials/cache
     window.ascendCheckedProblems = null;
     if (profileDropdown) profileDropdown.classList.remove('show');
     if (profileBtn) profileBtn.classList.remove('active');
-    
+
     await checkAuth();
+  });
+
+  // Reset Progress events
+  resetProgressBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (profileDropdown) profileDropdown.classList.remove('show');
+    if (profileBtn) profileBtn.classList.remove('active');
+    resetModalOverlay?.classList.add('show');
+  });
+
+  cancelResetBtn?.addEventListener('click', () => {
+    resetModalOverlay?.classList.remove('show');
+  });
+
+  resetModalOverlay?.addEventListener('click', (e) => {
+    if (e.target === resetModalOverlay) {
+      resetModalOverlay.classList.remove('show');
+    }
+  });
+
+  confirmResetBtn?.addEventListener('click', async () => {
+    const originalText = confirmResetBtn.textContent;
+    confirmResetBtn.textContent = 'RESETTING...';
+    confirmResetBtn.disabled = true;
+
+    try {
+      if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+        const session = await AscendSupabase.getSession();
+        if (session && session.user) {
+          await AscendSupabase.clearAllProgress();
+        }
+      }
+
+      localStorage.removeItem('ascend-checked');
+      window.ascendCheckedProblems = null;
+
+      showToast("Progress successfully reset.", "success");
+      resetModalOverlay?.classList.remove('show');
+
+      await checkAuth();
+      updateStats();
+
+      const activeAlgoBtn = document.querySelector('.algo-btn.active');
+      if (activeAlgoBtn) {
+        activeAlgoBtn.click();
+      }
+    } catch (err) {
+      console.error("Reset progress error:", err);
+      showToast("Error resetting progress: " + (err?.message || "Unknown error"), "error");
+    } finally {
+      confirmResetBtn.textContent = originalText;
+      confirmResetBtn.disabled = false;
+    }
   });
 
   if (profileBtn && profileDropdown) {
@@ -631,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Add active class to clicked tab
       tab.classList.add('active');
-      
+
       // Show corresponding content
       const targetId = tab.getAttribute('data-target');
       const targetContent = document.getElementById(targetId);
@@ -852,11 +910,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   function updateStats() {
     if (!ascendData) return;
-    
+
     const checkedData = getCheckedProblems();
     let totalSolved = 0;
     let totalProblems = 0;
-    
+
     const algoProgress = [];
 
     ascendData.algorithms.forEach(algo => {
@@ -921,14 +979,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const algoContainer = document.getElementById('algoProgressContainer');
     if (algoContainer) {
       algoContainer.innerHTML = '';
-      
+
       // Sort by percentage descending
       algoProgress.sort((a, b) => b.percentage - a.percentage);
 
       algoProgress.forEach(algo => {
         const item = document.createElement('div');
         item.className = 'algo-progress-item';
-        
+
         item.innerHTML = `
           <div class="algo-progress-header">
             <span>${escapeHTML(algo.name)}</span>
@@ -963,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Today at midnight UTC (based on local date component)
     const today = new Date();
     const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-    
+
     // Start date is exactly 370 days ago in UTC representation (53 weeks * 7 days - 1 = 370 days)
     const startDateUTC = todayUTC - (370 * 24 * 60 * 60 * 1000);
     const endDateUTC = todayUTC;
@@ -980,9 +1038,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getUTCDate()).padStart(2, '0');
       const dStr = `${year}-${month}-${day}`;
-      
+
       const count = dateCounts[dStr] || 0;
-      
+
       const cell = document.createElement('div');
       cell.className = 'heatmap-cell';
       cell.setAttribute('data-date', dStr);
@@ -1011,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       container.appendChild(cell);
-      
+
       currentTime += oneDayMs;
       dayIndex++;
     }
@@ -1030,15 +1088,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeDates = Object.keys(dateCounts)
       .filter(d => dateCounts[d] > 0)
       .sort((a, b) => new Date(a) - new Date(b));
-      
+
     if (activeDates.length === 0) {
       return { currentStreak: 0, maxStreak: 0 };
     }
-    
+
     let maxStreak = 0;
     let currentRun = 0;
     let prevDate = null;
-    
+
     activeDates.forEach(dStr => {
       const curDate = new Date(dStr + 'T00:00:00');
       if (prevDate === null) {
@@ -1056,24 +1114,24 @@ document.addEventListener('DOMContentLoaded', () => {
       prevDate = curDate;
     });
     maxStreak = Math.max(maxStreak, currentRun);
-    
+
     // Calculate current streak (ending today or yesterday)
     let currentStreak = 0;
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    
+
     const todayStrLocal = today.toISOString().split('T')[0];
     const yesterdayStrLocal = yesterday.toISOString().split('T')[0];
-    
+
     let checkDate = null;
     if (dateCounts[todayStrLocal] > 0) {
       checkDate = today;
     } else if (dateCounts[yesterdayStrLocal] > 0) {
       checkDate = yesterday;
     }
-    
+
     if (checkDate !== null) {
       currentStreak = 1;
       const testDate = new Date(checkDate);
@@ -1087,93 +1145,115 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
-    
+
     return { currentStreak, maxStreak };
   }
 
   function generateAscensionCard(username, totalSolved, totalProblems, streaks, checkedData) {
+    const W = 800;
+    const H = 520;
+    const scale = 3; // 3x scale multiplier for super crisp high-resolution cards
     const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 480;
+    canvas.width = W * scale;
+    canvas.height = H * scale;
     const ctx = canvas.getContext('2d');
-    
-    // 1. Draw Neon Cyan Shadow
+
+    // Scale all subsequent drawing contexts automatically
+    ctx.scale(scale, scale);
+
+    const W_card = W - 12;
+    const H_card = H - 12;
+    const PAD = 24; // Standardized left/right padding
+
+    // Helper functions
+    function text(str, x, y, font, fill, align) {
+      ctx.font = font;
+      ctx.fillStyle = fill;
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+    }
+
+    // 1. Draw Cyan Brutalist Shadow Offset (Brutalist style)
     ctx.fillStyle = '#00f0ff';
-    ctx.fillRect(32, 32, 746, 426);
-    
-    // 2. Draw Card Border & Dark Background
+    ctx.fillRect(12, 12, W_card, H_card);
+
+    // 2. Main Card Surface (Body background: #161616)
+    ctx.fillStyle = '#161616';
+    ctx.fillRect(0, 0, W_card, H_card);
     ctx.lineWidth = 4;
     ctx.strokeStyle = '#000000';
-    ctx.fillStyle = '#161616';
-    ctx.fillRect(20, 20, 746, 426);
-    ctx.strokeRect(20, 20, 746, 426);
-    
-    // 3. Draw Header Banner
-    ctx.fillStyle = '#ccff00'; // Neon Yellow
-    ctx.fillRect(40, 40, 706, 60);
-    ctx.strokeRect(40, 40, 706, 60);
-    
-    // Header Text
-    ctx.fillStyle = '#000000';
-    ctx.font = '900 24px "Space Grotesk", sans-serif';
-    ctx.fillText('ASCEND // ASCENSION CARD', 60, 78);
-    
-    // 4. Draw User Info
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 20px "Space Grotesk", sans-serif';
-    ctx.fillText('USER: @' + username.toUpperCase(), 40, 145);
-    
-    // 5. Problems Conquered Card (Left)
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(44, 174, 332, 92);
+    ctx.strokeRect(0, 0, W_card, H_card);
+
+    // 3. Header Banner (Neon yellow background, black border/text)
+    const HEADER_H = 58;
+    ctx.fillStyle = '#ccff00';
+    ctx.fillRect(PAD, PAD, W_card - PAD * 2, HEADER_H);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(PAD, PAD, W_card - PAD * 2, HEADER_H);
+
+    // Vertically centered header text (PAD + 37)
+    text('ASCEND // ASCENSION CARD', PAD + 18, PAD + 37, '900 24px "Space Grotesk", sans-serif', '#000000');
+
+    // Vertically centered date inside header banner (PAD + 34)
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    text(dateStr, W_card - PAD - 18, PAD + 34, '700 13px "Space Grotesk", sans-serif', 'rgba(0,0,0,0.6)', 'right');
+
+    // 4. User sub-label (Changed from '#ffffff' to '#b3b3b3' and reduced weight from 900 to 700)
+    let Y = PAD + HEADER_H + 34;
+    text('USER: @' + username.toUpperCase(), PAD, Y, '700 18px "Space Grotesk", sans-serif', '#b3b3b3');
+
+    // 5. Organized Symmetrical Boxes (exactly 740px total span)
+    Y += 22;
+    const BOX_W = 360;
+    const BOX_H = 108; // Symmetrical boxes
+
+    // Left Box: PROBLEMS CONQUERED
     ctx.fillStyle = '#b3b3b3';
-    ctx.fillRect(40, 170, 332, 92);
-    ctx.strokeRect(40, 170, 332, 92);
-    
+    ctx.fillRect(PAD, Y, BOX_W, BOX_H);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(PAD, Y, BOX_W, BOX_H);
+
+    text('PROBLEMS CONQUERED', PAD + 16, Y + 26, '900 11px "Space Grotesk", sans-serif', '#000000');
+
+    // Black badge block inside left box
     ctx.fillStyle = '#000000';
-    ctx.font = '800 12px "Space Grotesk", sans-serif';
-    ctx.fillText('PROBLEMS CONQUERED', 55, 195);
-    
-    // Black badge for numbers
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(55, 210, 302, 38);
-    
-    ctx.font = '900 20px "Space Grotesk", sans-serif';
+    ctx.fillRect(PAD + 16, Y + 42, BOX_W - 32, 48);
+
+    ctx.font = '700 20px "Space Grotesk", sans-serif'; // Reduced weight from 900 to 700
     ctx.fillStyle = '#ccff00';
     const solvedStr = totalSolved.toString();
-    ctx.fillText(solvedStr, 70, 236);
-    
-    ctx.font = '800 20px "Space Grotesk", sans-serif';
-    ctx.fillStyle = '#ffffff';
-    const dividerX = 70 + ctx.measureText(solvedStr).width + 5;
-    ctx.fillText('/', dividerX, 236);
-    
-    const totalStr = totalProblems.toString();
-    const totalX = dividerX + ctx.measureText('/').width + 5;
-    ctx.fillText(totalStr, totalX, 236);
-    
-    // 6. Consistency Streaks Card (Right)
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(404, 174, 332, 92);
+    ctx.fillText(solvedStr, PAD + 30, Y + 73);
+
+    ctx.fillStyle = '#b3b3b3'; // Changed from '#ffffff' to '#b3b3b3'
+    const offsetSlash = PAD + 30 + ctx.measureText(solvedStr).width + 6;
+    ctx.fillText('/ ' + totalProblems, offsetSlash, Y + 73);
+
+    // Right Box: CONSISTENCY STREAKS
+    const rightX = PAD + BOX_W + 20; // 24 + 360 + 20 = 404
     ctx.fillStyle = '#b3b3b3';
-    ctx.fillRect(400, 170, 332, 92);
-    ctx.strokeRect(400, 170, 332, 92);
-    
-    ctx.fillStyle = '#000000';
-    ctx.font = '800 12px "Space Grotesk", sans-serif';
-    ctx.fillText('CONSISTENCY STREAKS', 415, 195);
-    
-    ctx.fillStyle = '#000000';
-    ctx.font = '800 15px "Space Grotesk", sans-serif';
-    ctx.fillText('CURRENT STREAK: ' + streaks.currentStreak + (streaks.currentStreak === 1 ? ' DAY' : ' DAYS'), 415, 222);
-    ctx.fillText('MAX STREAK:     ' + streaks.maxStreak + (streaks.maxStreak === 1 ? ' DAY' : ' DAYS'), 415, 245);
-    
-    // 7. Heatmap Title
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 13px "Space Grotesk", sans-serif';
-    ctx.fillText('CONSISTENCY HEATMAP (PAST YEAR)', 40, 305);
-    
-    // Heatmap grid logic
+    ctx.fillRect(rightX, Y, BOX_W, BOX_H);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(rightX, Y, BOX_W, BOX_H);
+
+    text('CONSISTENCY STREAKS', rightX + 16, Y + 26, '900 11px "Space Grotesk", sans-serif', '#000000');
+    text('CURRENT STREAK: ' + streaks.currentStreak + (streaks.currentStreak === 1 ? ' DAY' : ' DAYS'), rightX + 16, Y + 56, '900 14px "Space Grotesk", sans-serif', '#000000');
+    text('MAX STREAK: ' + streaks.maxStreak + (streaks.maxStreak === 1 ? ' DAY' : ' DAYS'), rightX + 16, Y + 84, '900 14px "Space Grotesk", sans-serif', '#000000');
+
+    // 6. Consistency Heatmap Section (Changed from white #ffffff to greyish #b3b3b3, reduced weight from 900 to 700, and size to 14px)
+    Y += BOX_H + 38;
+    text('CONSISTENCY HEATMAP [PAST YEAR]', PAD, Y, '700 14px "Space Grotesk", sans-serif', '#b3b3b3');
+
+    Y += 14;
+    const CELL = 12;
+    const CGAP = 2;
+    const ROWS = 7;
+    const hmStartX = PAD; // Align exactly with left box outer edge (24)
+
+    // Aggregate solved dates
     const dateCounts = {};
     for (const key in checkedData) {
       if (checkedData[key] && checkedData[key].completed && checkedData[key].date) {
@@ -1181,91 +1261,115 @@ document.addEventListener('DOMContentLoaded', () => {
         dateCounts[d] = (dateCounts[d] || 0) + 1;
       }
     }
-    
+
+    // Exact 370-day layout from the stats dashboard
     const todayCard = new Date();
-    const todayCardUTC = Date.UTC(todayCard.getFullYear(), todayCard.getMonth(), todayCard.getDate());
-    
-    // Start date is exactly 370 days ago (53 weeks * 7 days - 1 = 370 days)
-    // so that today is always the 371st cell (placed at the bottom-right corner)
-    const startDateUTC = todayCardUTC - (370 * 24 * 60 * 60 * 1000);
-    const endDateUTC = todayCardUTC;
-    
-    let currentTime = startDateUTC;
+    const todayUTC = Date.UTC(todayCard.getFullYear(), todayCard.getMonth(), todayCard.getDate());
+    const startDateUTC = todayUTC - (370 * 24 * 60 * 60 * 1000);
     const oneDayMs = 24 * 60 * 60 * 1000;
-    let cellIndex = 0;
-    const cellW = 8;
-    const cellH = 8;
-    const gap = 2;
-    
-    const colors = {
-      0: '#1e1e1e',
-      1: 'rgba(204, 255, 0, 0.2)',
-      2: 'rgba(204, 255, 0, 0.45)',
-      3: 'rgba(204, 255, 0, 0.7)',
-      4: '#ccff00'
-    };
-    
-    while (currentTime <= endDateUTC) {
-      const currentDate = new Date(currentTime);
-      const year = currentDate.getUTCFullYear();
-      const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(currentDate.getUTCDate()).padStart(2, '0');
-      const dStr = `${year}-${month}-${day}`;
-      
-      const count = dateCounts[dStr] || 0;
-      
-      let level = 0;
-      if (count >= 4) level = 4;
-      else if (count === 3) level = 3;
-      else if (count === 2) level = 2;
-      else if (count === 1) level = 1;
-      
-      const col = Math.floor(cellIndex / 7);
-      const row = cellIndex % 7;
-      
-      const x = 40 + col * (cellW + gap);
-      const y = 320 + row * (cellH + gap);
-      
-      ctx.fillStyle = '#1e1e1e';
-      ctx.fillRect(x, y, cellW, cellH);
-      
-      if (level > 0) {
-        ctx.fillStyle = colors[level];
-        ctx.fillRect(x, y, cellW, cellH);
-      }
-      
-      cellIndex++;
+
+    const colors = [
+      '#262626',
+      'rgba(204, 255, 0, 0.25)',
+      'rgba(204, 255, 0, 0.5)',
+      'rgba(204, 255, 0, 0.75)',
+      '#ccff00'
+    ];
+
+    let currentTime = startDateUTC;
+    let dayIndex = 0;
+    while (currentTime <= todayUTC) {
+      const d = new Date(currentTime);
+      const dStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      const cnt = dateCounts[dStr] || 0;
+      const lvl = cnt >= 4 ? 4 : cnt;
+
+      const col = Math.floor(dayIndex / ROWS);
+      const row = dayIndex % ROWS;
+      const cx = hmStartX + col * (CELL + CGAP);
+      const cy = Y + row * (CELL + CGAP);
+
+      ctx.fillStyle = colors[lvl];
+      ctx.fillRect(cx, cy, CELL, CELL);
+
       currentTime += oneDayMs;
+      dayIndex++;
     }
-    
-    // Legend
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 11px "Space Grotesk", sans-serif';
-    ctx.fillText('Less', 40, 408);
-    
-    const legendXStart = 75;
+
+    // Legend - centered below heatmap
+    const LEG_Y = Y + ROWS * (CELL + CGAP) + 12;
+    const legTotalW = 32 + 5 * (CELL + CGAP) + 32;
+    const legStartX = Math.round((W_card - legTotalW) / 2);
+
+    text('Less', legStartX, LEG_Y + 8, '600 10px "Space Grotesk", sans-serif', '#b3b3b3');
     for (let i = 0; i <= 4; i++) {
-      const lx = legendXStart + i * 12;
-      const ly = 400;
-      ctx.fillStyle = '#1e1e1e';
-      ctx.fillRect(lx, ly, 8, 8);
-      if (i > 0) {
-        ctx.fillStyle = colors[i];
-        ctx.fillRect(lx, ly, 8, 8);
-      }
+      const lx = legStartX + 30 + i * (CELL + CGAP);
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(lx, LEG_Y, CELL, CELL);
     }
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('More', legendXStart + 5 * 12 + 2, 408);
-    
-    // Watermark
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.font = '600 11px "Space Grotesk", sans-serif';
-    ctx.fillText('VERIFY AT: ASCEND-DSA.TRACKER', 560, 435);
-    
-    // Trigger download
-    const link = document.createElement('a');
-    link.download = 'ascension-card-' + username + '.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    text('More', legStartX + 30 + 5 * (CELL + CGAP) + 6, LEG_Y + 8, '600 10px "Space Grotesk", sans-serif', '#b3b3b3');
+
+    // 7. Ascension Bar Section (Changed from white #ffffff/900 weight to greyish #b3b3b3/700 weight, and size to 14px)
+    Y = LEG_Y + 26;
+    const pct = totalProblems > 0 ? Math.round((totalSolved / totalProblems) * 100) : 0;
+    const BAR_W = W_card - PAD * 2; // Exact same 740px span
+    const BAR_X = PAD;
+    const BAR_H = 22;
+
+    text('ASCENSION BAR', BAR_X, Y, '700 14px "Space Grotesk", sans-serif', '#b3b3b3');
+    text(totalSolved + ' / ' + totalProblems + ' SOLVED (' + pct + '%)', BAR_X + BAR_W, Y, '700 14px "Space Grotesk", sans-serif', '#ccff00', 'right');
+
+    Y += 10;
+    ctx.fillStyle = '#262626';
+    ctx.fillRect(BAR_X, Y, BAR_W, BAR_H);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(BAR_X, Y, BAR_W, BAR_H);
+
+    const fillW = Math.round(BAR_W * pct / 100);
+    if (fillW > 0) {
+      ctx.fillStyle = '#ccff00';
+      ctx.fillRect(BAR_X, Y, fillW, BAR_H);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#000000';
+      ctx.strokeRect(BAR_X, Y, fillW, BAR_H);
+    }
+
+    // 8. Watermark (Verify at bottom-right pointing to getascend.vercel.app)
+    text('verify at: getascend.vercel.app', W_card - PAD, H_card - 12, '600 10px "Space Grotesk", sans-serif', 'rgba(179,179,179,0.5)', 'right');
+
+    // 9. Floating Preview Modal Trigger
+    const dataURL = canvas.toDataURL('image/png');
+    const overlay = document.getElementById('cardModalOverlay');
+    const previewImg = document.getElementById('cardPreviewImg');
+    const downloadBtn = document.getElementById('cardDownloadBtn');
+
+    if (!overlay || !previewImg || !downloadBtn) return;
+
+    previewImg.src = dataURL;
+    overlay.classList.add('show');
+
+    // Download handler
+    downloadBtn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'ascension-card-' + username + '.png';
+      link.href = dataURL;
+      link.click();
+    };
+
+    // Close on overlay backdrop click
+    overlay.onclick = (e) => {
+      if (e.target === overlay || e.target.classList.contains('floating-card-container')) {
+        overlay.classList.remove('show');
+      }
+    };
+
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        overlay.classList.remove('show');
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
   }
 });

@@ -219,6 +219,24 @@ async function deleteProgress(problemId) {
   }
 }
 
+async function clearAllProgress() {
+  const client = initSupabase();
+  if (!client) return;
+
+  const session = await getSession();
+  if (!session) throw new Error("Must be logged in to reset progress.");
+
+  const { error } = await client
+    .from('user_progress')
+    .delete()
+    .eq('user_id', session.user.id);
+
+  if (error) {
+    console.error("Error clearing user progress:", error);
+    throw error;
+  }
+}
+
 // Export functions to global scope
 window.AscendSupabase = {
   initSupabase,
@@ -232,5 +250,6 @@ window.AscendSupabase = {
   fetchUserProgress,
   upsertProgress,
   upsertProgressBulk,
-  deleteProgress
+  deleteProgress,
+  clearAllProgress
 };

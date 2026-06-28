@@ -11,7 +11,7 @@
     content="Ascend — A structured DSA sheet with 434 LeetCode problems organized by algorithm patterns. Track your progress and master Data Structures and Algorithms." />
   <title>Ascend - DSA Sheet & Tracker</title>
   <link rel="icon" type="image/png" href="ascend_icon.png" />
-  <link rel="stylesheet" href="style.css?v=15.1" />
+  <link rel="stylesheet" href="style.css?v=15.2" />
   <style>
     @media (max-width: 768px) {
       .navbar {
@@ -67,9 +67,7 @@
           <button class="profile-btn" aria-label="Profile" id="profileBtn">PROFILE</button>
           <div class="profile-dropdown" id="profileDropdown">
             <div class="dropdown-item username-display" id="displayUsername">@user</div>
-            <a href="#" class="dropdown-item">Settings</a>
-            <a href="#" class="dropdown-item">Bookmarks</a>
-            <a href="#" class="dropdown-item">Data Export</a>
+            <a href="#" class="dropdown-item text-red" id="resetProgressBtn">Reset Progress</a>
             <a href="#" class="dropdown-item text-red" id="logoutBtn">Log Out</a>
           </div>
         </div>
@@ -323,9 +321,32 @@
     </div>
   </main>
 
+  <!-- ===== ASCENSION CARD PREVIEW MODAL ===== -->
+  <div class="card-modal-overlay" id="cardModalOverlay">
+    <div class="floating-card-container">
+      <img class="card-preview-img" id="cardPreviewImg" src="" alt="Ascension Card Preview" />
+      <button class="brutalist-action-btn card-download-btn" id="cardDownloadBtn">DOWNLOAD PNG</button>
+    </div>
+  </div>
+
+  <!-- ===== RESET PROGRESS CONFIRMATION MODAL ===== -->
+  <div class="reset-modal-overlay" id="resetModalOverlay">
+    <div class="reset-modal-content">
+      <div class="reset-modal-header">WARNING // DESTRUCTIVE ACTION</div>
+      <div class="reset-modal-body">
+        <p>This will permanently clear all of your solved problems and reset your streaks.</p>
+        <p class="warning-highlight">This action cannot be undone.</p>
+      </div>
+      <div class="reset-modal-footer">
+        <button class="brutalist-modal-btn cancel-btn" id="cancelResetBtn">CANCEL</button>
+        <button class="brutalist-modal-btn confirm-btn" id="confirmResetBtn">YES, RESET PROGRESS</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-client.js?v=19.2"></script>
-  <script src="script.js?v=21.3"></script>
+  <script src="supabase-client.js?v=19.3"></script>
+  <script src="script.js?v=21.7"></script>
 </body>
 
 </html>
