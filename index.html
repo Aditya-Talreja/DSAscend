@@ -11,12 +11,13 @@
     content="Ascend — A structured DSA sheet with 434 LeetCode problems organized by algorithm patterns. Track your progress and master Data Structures and Algorithms." />
   <title>Ascend - DSA Sheet & Tracker</title>
   <link rel="icon" type="image/png" href="ascend_icon.png" />
-  <link rel="stylesheet" href="style.css?v=15.3" />
+  <link rel="stylesheet" href="style.css?v=16.2" />
   <style>
     @media (max-width: 768px) {
       .navbar {
         flex-wrap: wrap;
       }
+
       .nav-center {
         display: none !important;
         width: 100% !important;
@@ -24,12 +25,15 @@
         align-items: stretch !important;
         padding-top: 0.25rem;
       }
+
       .navbar.open .nav-center {
         display: flex !important;
       }
+
       .mobile-nav-toggle {
         display: flex !important;
       }
+
       .nav-right {
         margin-left: auto;
       }
@@ -55,13 +59,15 @@
     </div>
 
     <div class="nav-right">
-      <button class="mobile-nav-toggle" type="button" id="mobileNavToggle" aria-label="Toggle navigation" aria-expanded="false">
+      <button class="mobile-nav-toggle" type="button" id="mobileNavToggle" aria-label="Toggle navigation"
+        aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
       </button>
       <div class="auth-container" id="authContainer">
-        <button class="profile-btn" aria-label="Login" id="loginBtn">LOGIN</button>
+        <div class="auth-loading-placeholder" id="authLoadingPlaceholder"><span></span></div>
+        <button class="profile-btn" aria-label="Login" id="loginBtn" style="display:none;">LOGIN</button>
 
         <div class="profile-menu-container" style="display:none;" id="userProfileContainer">
           <button class="profile-btn" aria-label="Profile" id="profileBtn">PROFILE</button>
@@ -233,33 +239,40 @@
       </div>
     </div>
     <div id="tab-3" class="tab-content">
-      <div id="statsAuthPrompt" class="brutalist-login-card">
+      <div class="stats-loading-placeholder" id="statsLoadingPlaceholder">
+        <div class="stats-loading-bar"></div>
+        <span class="stats-loading-text">Loading...</span>
+      </div>
+      <div id="statsAuthPrompt" class="brutalist-login-card" style="display:none;">
         <h2 class="login-title" id="authTitle">LOGIN</h2>
-        
+
         <div class="form-group">
           <label for="statsEmailInput">EMAIL</label>
-          <input type="email" id="statsEmailInput" class="brutalist-input" placeholder="your@email.com" autocomplete="off" />
+          <input type="email" id="statsEmailInput" class="brutalist-input" placeholder="your@email.com"
+            autocomplete="off" />
         </div>
-        
+
         <div class="form-group">
           <label for="statsPasswordInput">PASSWORD</label>
           <input type="password" id="statsPasswordInput" class="brutalist-input" placeholder="••••••••" />
         </div>
-        
-        <div id="authMessage" class="auth-message" style="display: none; margin-bottom: 1rem; font-weight: 800; padding: 0.5rem; border: 3px solid #000; text-align: center; box-shadow: 3px 3px 0 0 #000;"></div>
+
+        <div id="authMessage" class="auth-message"
+          style="display: none; margin-bottom: 1rem; font-weight: 800; padding: 0.5rem; border: 3px solid #000; text-align: center; box-shadow: 3px 3px 0 0 #000;">
+        </div>
 
         <button class="brutalist-login-btn" id="statsLoginBtn">SIGN IN</button>
-        
+
         <div class="brutalist-divider">
           <span class="divider-line"></span>
           <span class="divider-text">OR</span>
           <span class="divider-line"></span>
         </div>
-        
+
         <div class="social-login-row">
           <button class="social-login-btn" type="button" id="googleLoginBtn" title="Sign in with Google">G</button>
         </div>
-        
+
         <div class="login-footer" id="authFooter">
           Don't have an account? <a href="#" class="signup-link" id="authModeToggle">Sign up</a>
         </div>
@@ -277,18 +290,28 @@
           <div class="brutalist-card stats-ascended">
             <h2>YOUR ASCENSION</h2>
             <p style="margin-bottom: 0.75rem;">Download a personalized card showcasing your Ascension.</p><br>
-            <div class="ascension-row" style="margin-top: auto; display: flex; align-items: flex-end; gap: 2.5rem; flex-wrap: wrap;">
+            <div class="ascension-row"
+              style="margin-top: auto; display: flex; align-items: flex-end; gap: 2.5rem; flex-wrap: wrap;">
               <div class="streak-stats-row" style="display: flex; gap: 1.5rem;">
                 <div>
-                  <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Current Streak</span>
-                  <span id="currentStreakVal" style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0 days</span>
+                  <span
+                    style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Current
+                    Streak</span>
+                  <span id="currentStreakVal"
+                    style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0
+                    days</span>
                 </div>
                 <div>
-                  <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Max Streak</span>
-                  <span id="maxStreakVal" style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0 days</span>
+                  <span
+                    style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; display: block; color: rgba(0,0,0,0.65); line-height: 1.2;">Max
+                    Streak</span>
+                  <span id="maxStreakVal"
+                    style="font-size: 1.8rem; font-weight: 900; color: var(--text-dark); line-height: 1.2;">0
+                    days</span>
                 </div>
               </div>
-              <button class="brutalist-action-btn" id="downloadCardBtn" style="margin-top: 0; position: relative; top: 4px; left: 80px;">GENERATE CARD</button>
+              <button class="brutalist-action-btn" id="downloadCardBtn"
+                style="margin-top: 0; position: relative; top: 4px; left: 80px;">GENERATE CARD</button>
             </div>
           </div>
         </div>
@@ -345,8 +368,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-client.js?v=19.3"></script>
-  <script src="script.js?v=21.8"></script>
+  <script src="supabase-client.js?v=20.0"></script>
+  <script src="script.js?v=22.6"></script>
 </body>
 
 </html>

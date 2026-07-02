@@ -1,118 +1,33 @@
-// ==========================================
-// TICKER TEXT ARRAY
-// Edit the lines below to change the marquee text!
-// ==========================================
-const tickerLines = [
-  "Arrays store elements in contiguous memory",
-  "Binary Search works only on sorted data",
-  "Hash tables provide average O(1) lookup",
-  "Stacks follow LIFO order",
-  "Queues follow FIFO order",
-  "Linked lists allow dynamic memory allocation",
-  "Trees are hierarchical data structures",
-  "Graphs represent relationships between nodes",
-  "DFS uses a stack internally",
-  "BFS uses a queue internally",
-  "Merge Sort has O(n log n) complexity",
-  "Quick Sort is often faster in practice",
-  "Heap Sort uses a binary heap",
-  "Bubble Sort is rarely used in production",
-  "Selection Sort minimizes swaps",
-  "Insertion Sort is efficient for small datasets",
-  "Trie is useful for prefix searches",
-  "Heap supports priority queue operations",
-  "Binary Trees have at most two children",
-  "AVL Trees are self-balancing",
-  "Red-Black Trees maintain balance with colors",
-  "Graphs can be directed or undirected",
-  "Dijkstra finds shortest paths",
-  "Bellman-Ford handles negative weights",
-  "Floyd-Warshall finds all-pairs shortest paths",
-  "Topological Sort works on DAGs",
-  "Union-Find solves connectivity problems",
-  "Dynamic Programming avoids recomputation",
-  "Greedy algorithms make local optimal choices",
-  "Recursion uses the call stack",
-  "Memoization speeds up recursive solutions",
-  "Backtracking explores all possibilities",
-  "Binary Search runs in O(log n)",
-  "Linear Search runs in O(n)",
-  "Hash collisions are unavoidable",
-  "Load factor affects hash table performance",
-  "A complete tree fills levels left to right",
-  "A full binary tree has 0 or 2 children",
-  "Balanced trees improve search efficiency",
-  "Graphs can contain cycles",
-  "Adjacency lists save memory",
-  "Adjacency matrices allow fast edge lookup",
-  "A min-heap keeps the smallest element on top",
-  "A max-heap keeps the largest element on top",
-  "Queues are used in scheduling systems",
-  "Stacks are used for undo operations",
-  "Trees are used in file systems",
-  "Graphs power social networks",
-  "Hash maps are key-value stores",
-  "Two pointers reduce nested loops",
-  "Sliding window optimizes subarray problems",
-  "Prefix sums speed up range queries",
-  "Segment trees answer range queries efficiently",
-  "Fenwick Trees support prefix operations",
-  "Sparse tables handle static range queries",
-  "Deque allows insertion from both ends",
-  "Circular queues reuse memory efficiently",
-  "Bit manipulation can optimize solutions",
-  "XOR can find unique elements",
-  "Binary representation powers bitwise tricks",
-  "Greedy solutions are not always optimal",
-  "DP often trades space for speed",
-  "Recursion can cause stack overflow",
-  "Tail recursion can be optimized",
-  "Graphs model real-world networks",
-  "Trees are a special type of graph",
-  "Every node in a BST follows ordering rules",
-  "Inorder traversal of BST is sorted",
-  "Preorder visits root before children",
-  "Postorder visits children before root",
-  "Level order traversal uses BFS",
-  "Heaps are complete binary trees",
-  "Priority queues are often heap-based",
-  "Time complexity measures execution growth",
-  "Space complexity measures memory usage",
-  "Big O describes worst-case growth",
-  "Omega notation describes best case",
-  "Theta notation describes tight bounds",
-  "Amortized analysis averages operation costs",
-  "Hashing converts data into fixed values",
-  "Collision resolution uses chaining or probing",
-  "Open addressing stores data in the table",
-  "Separate chaining uses linked lists",
-  "Binary heaps support O(log n) insertion",
-  "Graphs can be weighted or unweighted",
-  "Cycle detection is a common graph problem",
-  "MST stands for Minimum Spanning Tree",
-  "Kruskal's algorithm builds an MST",
-  "Prim's algorithm builds an MST",
-  "Shortest path is a classic interview topic",
-  "Recursion and iteration can solve similar tasks",
-  "Data structures organize information efficiently",
-  "Algorithms are step-by-step problem solutions",
-  "Choosing the right structure matters",
-  "Optimization often starts with complexity analysis",
-  "Practice improves problem-solving speed",
-  "DSA is the foundation of coding interviews",
-  "Strong DSA skills improve programming efficiency"
-];
-// ==========================================
-
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Ticker
-  const tickerString = tickerLines.join("  •  ") + "  •  ";
-  const ticker1 = document.getElementById('tickerText1');
-  const ticker2 = document.getElementById('tickerText2');
-  if (ticker1 && ticker2) {
-    ticker1.textContent = tickerString;
-    ticker2.textContent = tickerString;
-  }
+  // Initialize Ticker from JSON file
+  fetch('ticker-lines.json')
+    .then(res => res.json())
+    .then(lines => {
+      // Shuffle array dynamically using Fisher-Yates shuffle
+      for (let i = lines.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [lines[i], lines[j]] = [lines[j], lines[i]];
+      }
+
+      const tickerString = lines.join("  •  ") + "  •  ";
+      const ticker1 = document.getElementById('tickerText1');
+      const ticker2 = document.getElementById('tickerText2');
+      if (ticker1 && ticker2) {
+        ticker1.textContent = tickerString;
+        ticker2.textContent = tickerString;
+
+        // Set dynamic animation duration to keep visual scroll speed constant and slower
+        // 8.0 characters per second (medium scroll velocity)
+        const duration = Math.round(tickerString.length / 8.0);
+        document.querySelectorAll('.ticker-content').forEach(el => {
+          el.style.animationDuration = `${duration}s`;
+          // Force layout reflow and add the transition trigger
+          void el.offsetWidth;
+          el.classList.add('loaded');
+        });
+      }
+    })
+    .catch(err => console.error('Failed to load ticker lines:', err));
 
   // ==========================================
   // AUTHENTICATION & PROFILE LOGIC
@@ -292,14 +207,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Remove loading placeholders (first auth resolve only)
+    const authPlaceholder = document.getElementById('authLoadingPlaceholder');
+    const statsPlaceholder = document.getElementById('statsLoadingPlaceholder');
+    if (authPlaceholder) authPlaceholder.remove();
+    if (statsPlaceholder) statsPlaceholder.remove();
+
     if (isLoggedIn) {
       if (loginBtn) loginBtn.style.display = 'none';
-      if (userProfileContainer) userProfileContainer.style.display = 'block';
+      if (userProfileContainer) {
+        userProfileContainer.style.display = 'block';
+        userProfileContainer.classList.add('auth-fade-in');
+      }
       if (displayUsername) displayUsername.textContent = '@' + username;
 
       if (statsAuthPrompt) statsAuthPrompt.style.display = 'none';
       if (statsDashboard) {
         statsDashboard.style.display = 'block';
+        statsDashboard.classList.add('auth-fade-in');
         const wrapper = document.querySelector('.heatmap-wrapper');
         if (wrapper) {
           setTimeout(() => {
@@ -308,10 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } else {
-      if (loginBtn) loginBtn.style.display = 'block';
+      if (loginBtn) {
+        loginBtn.style.display = 'block';
+        loginBtn.classList.add('auth-fade-in');
+      }
       if (userProfileContainer) userProfileContainer.style.display = 'none';
 
-      if (statsAuthPrompt) statsAuthPrompt.style.display = 'block';
+      if (statsAuthPrompt) {
+        statsAuthPrompt.style.display = 'block';
+        statsAuthPrompt.classList.add('auth-fade-in');
+      }
       if (statsDashboard) statsDashboard.style.display = 'none';
     }
 
@@ -531,6 +462,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profileDropdown) profileDropdown.classList.remove('show');
     if (profileBtn) profileBtn.classList.remove('active');
 
+    // Clear persisted UI state on logout
+    try {
+      sessionStorage.removeItem('ascend-active-algo');
+      sessionStorage.removeItem('ascend-open-accordions');
+    } catch (e) { /* sessionStorage unavailable */ }
+
     await checkAuth();
   });
 
@@ -648,6 +585,68 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileNavToggle = document.getElementById('mobileNavToggle');
   const navCenter = document.querySelector('.nav-center');
 
+  // ==========================================
+  // HASH-BASED TAB ROUTING & STATE PERSISTENCE
+  // ==========================================
+  const TAB_HASH_MAP = {
+    '#arcade': 'tab-1',
+    '#sheet': 'tab-2',
+    '#stats': 'tab-3'
+  };
+  const TAB_ID_TO_HASH = {
+    'tab-1': '#arcade',
+    'tab-2': '#sheet',
+    'tab-3': '#stats'
+  };
+
+  function activateTabByTargetId(targetId, updateHash) {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+
+    const matchingTab = Array.from(tabs).find(t => t.getAttribute('data-target') === targetId);
+    if (matchingTab) {
+      matchingTab.classList.add('active');
+    }
+
+    const targetContent = document.getElementById(targetId);
+    if (targetContent) {
+      targetContent.classList.add('active');
+    }
+
+    if (updateHash && TAB_ID_TO_HASH[targetId]) {
+      history.replaceState(null, '', TAB_ID_TO_HASH[targetId]);
+    }
+
+    if (targetId === 'tab-3') {
+      const wrapper = document.querySelector('.heatmap-wrapper');
+      if (wrapper) {
+        setTimeout(() => {
+          wrapper.scrollLeft = wrapper.scrollWidth;
+        }, 50);
+      }
+    }
+  }
+
+  function restoreTabFromHash() {
+    const hash = window.location.hash.toLowerCase();
+    // Don't interfere with Supabase auth token hashes
+    if (hash.includes('access_token=') || hash.includes('id_token=') || hash.includes('refresh_token=')) {
+      return;
+    }
+    const targetId = TAB_HASH_MAP[hash];
+    if (targetId) {
+      activateTabByTargetId(targetId, false);
+    }
+  }
+
+  // Restore tab on initial load
+  restoreTabFromHash();
+
+  // Handle browser back/forward navigation
+  window.addEventListener('hashchange', () => {
+    restoreTabFromHash();
+  });
+
   function syncMobileNavbarState() {
     const isMobile = window.innerWidth <= 768;
 
@@ -692,28 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      // Remove active class from all tabs and contents
-      tabs.forEach(t => t.classList.remove('active'));
-      contents.forEach(c => c.classList.remove('active'));
-
-      // Add active class to clicked tab
-      tab.classList.add('active');
-
-      // Show corresponding content
       const targetId = tab.getAttribute('data-target');
-      const targetContent = document.getElementById(targetId);
-      if (targetContent) {
-        targetContent.classList.add('active');
-      }
-
-      if (targetId === 'tab-3') {
-        const wrapper = document.querySelector('.heatmap-wrapper');
-        if (wrapper) {
-          setTimeout(() => {
-            wrapper.scrollLeft = wrapper.scrollWidth;
-          }, 50);
-        }
-      }
+      activateTabByTargetId(targetId, true);
 
       if (window.innerWidth <= 768 && navbar && navbar.classList.contains('open')) {
         navbar.classList.remove('open');
@@ -828,12 +807,31 @@ document.addEventListener('DOMContentLoaded', () => {
           document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
 
+          // Persist selected algorithm to sessionStorage
+          try {
+            sessionStorage.setItem('ascend-active-algo', String(index));
+          } catch (e) { /* sessionStorage unavailable */ }
+
           // Render patterns
           renderPatterns(algo, patternContainer);
         });
 
         algoContainer.appendChild(btn);
       });
+
+      // Restore previously selected algorithm from sessionStorage
+      try {
+        const savedAlgoIndex = sessionStorage.getItem('ascend-active-algo');
+        if (savedAlgoIndex !== null) {
+          const idx = parseInt(savedAlgoIndex, 10);
+          if (!isNaN(idx)) {
+            const algoBtn = algoContainer.querySelector(`[data-algo-index="${idx}"]`);
+            if (algoBtn) {
+              algoBtn.click();
+            }
+          }
+        }
+      } catch (e) { /* sessionStorage unavailable */ }
 
       // Initial stats render
       if (typeof updateStats === 'function') updateStats();
@@ -843,6 +841,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPatterns(algo, container) {
     container.innerHTML = '';
     const checked = getCheckedProblems();
+
+    // Read saved accordion state
+    let savedOpenAccordions = [];
+    try {
+      const saved = sessionStorage.getItem('ascend-open-accordions');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) savedOpenAccordions = parsed;
+      }
+    } catch (e) { /* sessionStorage unavailable or corrupted */ }
 
     algo.patterns.forEach((pattern, pIndex) => {
       const section = document.createElement('div');
@@ -904,10 +912,26 @@ document.addEventListener('DOMContentLoaded', () => {
       section.appendChild(header);
       section.appendChild(body);
 
+      // Restore accordion state if previously expanded
+      if (savedOpenAccordions.includes(pIndex)) {
+        header.classList.add('open');
+        body.classList.add('open');
+      }
+
       // Accordion toggle
       header.addEventListener('click', () => {
         header.classList.toggle('open');
         body.classList.toggle('open');
+
+        // Persist accordion expanded state to sessionStorage
+        try {
+          const openHeaders = container.querySelectorAll('.pattern-header.open');
+          const openIndices = Array.from(openHeaders).map(h => {
+            const sec = h.closest('.pattern-section');
+            return Array.from(container.children).indexOf(sec);
+          }).filter(i => i >= 0);
+          sessionStorage.setItem('ascend-open-accordions', JSON.stringify(openIndices));
+        } catch (e) { /* sessionStorage unavailable */ }
       });
 
       container.appendChild(section);
