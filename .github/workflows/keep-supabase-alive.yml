@@ -1,0 +1,27 @@
+name: Keep Supabase Alive
+
+# Runs every 5 days to prevent Supabase free-tier DB from pausing (7-day inactivity limit)
+on:
+  schedule:
+    - cron: '0 8 */5 * *'  # Every 5 days at 8:00 AM UTC
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          echo "Pinging Supabase to keep the database alive..."
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/user_progress?select=problem_id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ Supabase ping successful (HTTP $RESPONSE) — database is alive!"
+          else
+            echo "❌ Supabase ping failed with HTTP $RESPONSE"
+            exit 1
+          fi
