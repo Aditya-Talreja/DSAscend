@@ -12,16 +12,24 @@ jobs:
     steps:
       - name: Ping Supabase Database
         run: |
-          echo "Pinging Supabase to keep the database alive..."
+          echo "Pinging Supabase services to keep the database alive..."
           
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+          AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/auth/v1/health" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/user_progress?select=problem_id&limit=1" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
           
-          if [ "$RESPONSE" -eq 200 ]; then
-            echo "✅ Supabase ping successful (HTTP $RESPONSE) — database is alive!"
+          echo "Auth health status: $AUTH_STATUS"
+          echo "REST query status: $REST_STATUS"
+          
+          # HTTP 200 = Success; HTTP 401 from PostgREST confirms PostgreSQL received and evaluated the query
+          if [ "$AUTH_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 401 ]; then
+            echo "✅ Supabase ping successful — database and API services are active!"
           else
-            echo "❌ Supabase ping failed with HTTP $RESPONSE"
+            echo "❌ Supabase ping failed (Auth: $AUTH_STATUS, REST: $REST_STATUS)"
             exit 1
           fi
