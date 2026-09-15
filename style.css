@@ -1341,6 +1341,25 @@ body {
   color: var(--neon-pink);
 }
 
+.forgot-password-row {
+  text-align: right;
+  margin-top: -0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.forgot-password-link {
+  color: blue;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  transition: color 0.1s ease;
+}
+
+.forgot-password-link:hover {
+  color: var(--neon-pink);
+}
+
 /* =========================================
    STATS PAGE & HEATMAP
 ========================================= */
