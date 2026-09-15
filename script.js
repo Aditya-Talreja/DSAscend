@@ -49,28 +49,64 @@ document.addEventListener('DOMContentLoaded', () => {
   const statsEmailInput = document.getElementById('statsEmailInput');
   const statsPasswordInput = document.getElementById('statsPasswordInput');
   const statsLoginBtn = document.getElementById('statsLoginBtn');
+  const passwordGroup = document.getElementById('passwordGroup');
+  const forgotPasswordRow = document.getElementById('forgotPasswordRow');
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const socialLoginGroup = document.getElementById('socialLoginGroup');
 
-  let currentAuthMode = 'login'; // 'login' or 'signup'
+  let currentAuthMode = 'login'; // 'login', 'signup', or 'forgot'
   const authModeToggle = document.getElementById('authModeToggle');
   const authTitle = document.getElementById('authTitle');
 
-  authModeToggle?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (currentAuthMode === 'login') {
-      currentAuthMode = 'signup';
+  function setAuthMode(mode) {
+    currentAuthMode = mode;
+    const authMessage = document.getElementById('authMessage');
+    if (authMessage) authMessage.style.display = 'none';
+
+    if (mode === 'signup') {
       if (authTitle) authTitle.textContent = 'REGISTER';
       if (statsLoginBtn) statsLoginBtn.textContent = 'SIGN UP';
+      if (passwordGroup) passwordGroup.style.display = 'flex';
+      if (forgotPasswordRow) forgotPasswordRow.style.display = 'none';
+      if (socialLoginGroup) socialLoginGroup.style.display = 'block';
       if (authModeToggle) authModeToggle.textContent = 'Sign in';
-      const textNode = authModeToggle.previousSibling;
+      const textNode = authModeToggle?.previousSibling;
       if (textNode) textNode.textContent = 'Already have an account? ';
+    } else if (mode === 'forgot') {
+      if (authTitle) authTitle.textContent = 'RESET PASSWORD';
+      if (statsLoginBtn) statsLoginBtn.textContent = 'SEND RESET LINK';
+      if (passwordGroup) passwordGroup.style.display = 'none';
+      if (forgotPasswordRow) forgotPasswordRow.style.display = 'none';
+      if (socialLoginGroup) socialLoginGroup.style.display = 'none';
+      if (authModeToggle) authModeToggle.textContent = 'Sign in';
+      const textNode = authModeToggle?.previousSibling;
+      if (textNode) textNode.textContent = 'Remember your password? ';
     } else {
       currentAuthMode = 'login';
       if (authTitle) authTitle.textContent = 'LOGIN';
       if (statsLoginBtn) statsLoginBtn.textContent = 'SIGN IN';
+      if (passwordGroup) passwordGroup.style.display = 'flex';
+      if (forgotPasswordRow) forgotPasswordRow.style.display = 'block';
+      if (socialLoginGroup) socialLoginGroup.style.display = 'block';
       if (authModeToggle) authModeToggle.textContent = 'Sign up';
-      const textNode = authModeToggle.previousSibling;
+      const textNode = authModeToggle?.previousSibling;
       if (textNode) textNode.textContent = 'Don\'t have an account? ';
     }
+  }
+
+  authModeToggle?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (currentAuthMode === 'login') {
+      setAuthMode('signup');
+    } else {
+      setAuthMode('login');
+    }
+  });
+
+  forgotPasswordLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setAuthMode('forgot');
+    if (statsEmailInput) statsEmailInput.focus();
   });
 
   // Brutalist Toast Notification Helper
@@ -292,6 +328,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = statsPasswordInput ? statsPasswordInput.value.trim() : '';
     const authMessage = document.getElementById('authMessage');
 
+    if (currentAuthMode === 'forgot') {
+      if (!email) {
+        if (authMessage) {
+          authMessage.textContent = "Please enter your email address.";
+          authMessage.className = "auth-message error";
+          authMessage.style.display = "block";
+        }
+        return;
+      }
+
+      statsLoginBtn.classList.add('btn-loading');
+      if (authMessage) authMessage.style.display = "none";
+
+      try {
+        if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+          await runWithTimeout(
+            AscendSupabase.resetPasswordForEmail(email),
+            'Timed out while sending reset link. Please check your connection and try again.'
+          );
+          if (authMessage) {
+            authMessage.textContent = "Password reset link sent! Check your email inbox.";
+            authMessage.className = "auth-message success";
+            authMessage.style.display = "block";
+          }
+          showToast("Reset link sent! Check your inbox.", "success");
+        } else {
+          showToast("Supabase is not configured yet.", "error");
+        }
+      } catch (err) {
+        if (authMessage) {
+          authMessage.textContent = err?.message || "Failed to send reset link.";
+          authMessage.className = "auth-message error";
+          authMessage.style.display = "block";
+        }
+        showToast(err?.message || "Failed to send reset link", "error");
+      } finally {
+        statsLoginBtn.classList.remove('btn-loading');
+      }
+      return;
+    }
+
     if (!email || !password) {
       if (authMessage) {
         authMessage.textContent = "Please fill in all fields.";
@@ -341,15 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isEmailVerificationRequired) {
           if (statsPasswordInput) statsPasswordInput.value = '';
-          // Reset button state
           statsLoginBtn.classList.remove('btn-loading');
-          // Switch to login mode automatically for their convenience
-          currentAuthMode = 'login';
-          if (authTitle) authTitle.textContent = 'LOGIN';
-          if (statsLoginBtn) statsLoginBtn.textContent = 'SIGN IN';
-          if (authModeToggle) authModeToggle.textContent = 'Sign up';
-          const textNode = authModeToggle?.previousSibling;
-          if (textNode) textNode.textContent = "Don't have an account? ";
+          setAuthMode('login');
         } else {
           setTimeout(async () => {
             if (statsEmailInput) statsEmailInput.value = '';
@@ -524,6 +594,137 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ==========================================
+  // PASSWORD RECOVERY / RESET MODAL
+  // ==========================================
+  const newPasswordModalOverlay = document.getElementById('newPasswordModalOverlay');
+  const recoveryNewPassword = document.getElementById('recoveryNewPassword');
+  const recoveryConfirmPassword = document.getElementById('recoveryConfirmPassword');
+  const recoveryMessage = document.getElementById('recoveryMessage');
+  const cancelNewPasswordBtn = document.getElementById('cancelNewPasswordBtn');
+  const saveNewPasswordBtn = document.getElementById('saveNewPasswordBtn');
+
+  function openRecoveryModal() {
+    if (newPasswordModalOverlay) {
+      newPasswordModalOverlay.classList.add('show');
+      if (recoveryNewPassword) {
+        recoveryNewPassword.value = '';
+        setTimeout(() => recoveryNewPassword.focus(), 150);
+      }
+      if (recoveryConfirmPassword) recoveryConfirmPassword.value = '';
+      if (recoveryMessage) recoveryMessage.style.display = 'none';
+    }
+  }
+
+  function closeRecoveryModal() {
+    if (newPasswordModalOverlay) {
+      newPasswordModalOverlay.classList.remove('show');
+    }
+    // Clean up recovery hash params from URL
+    if (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token')) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+
+  window.addEventListener('ascend:password-recovery', () => {
+    openRecoveryModal();
+  });
+
+  // Check URL hash immediately on page load in case event already fired
+  if (window.location.hash && window.location.hash.includes('type=recovery')) {
+    setTimeout(openRecoveryModal, 400);
+  }
+
+  cancelNewPasswordBtn?.addEventListener('click', () => {
+    closeRecoveryModal();
+  });
+
+  newPasswordModalOverlay?.addEventListener('click', (e) => {
+    if (e.target === newPasswordModalOverlay) {
+      closeRecoveryModal();
+    }
+  });
+
+  saveNewPasswordBtn?.addEventListener('click', async () => {
+    const newPass = recoveryNewPassword ? recoveryNewPassword.value.trim() : '';
+    const confirmPass = recoveryConfirmPassword ? recoveryConfirmPassword.value.trim() : '';
+
+    if (!newPass || !confirmPass) {
+      if (recoveryMessage) {
+        recoveryMessage.textContent = "Please fill in both password fields.";
+        recoveryMessage.className = "auth-message error";
+        recoveryMessage.style.display = "block";
+      }
+      return;
+    }
+
+    if (newPass.length < 6) {
+      if (recoveryMessage) {
+        recoveryMessage.textContent = "Password must be at least 6 characters long.";
+        recoveryMessage.className = "auth-message error";
+        recoveryMessage.style.display = "block";
+      }
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      if (recoveryMessage) {
+        recoveryMessage.textContent = "Passwords do not match.";
+        recoveryMessage.className = "auth-message error";
+        recoveryMessage.style.display = "block";
+      }
+      return;
+    }
+
+    const originalBtnText = saveNewPasswordBtn.textContent;
+    saveNewPasswordBtn.textContent = 'UPDATING...';
+    saveNewPasswordBtn.disabled = true;
+    if (recoveryMessage) recoveryMessage.style.display = 'none';
+
+    try {
+      if (window.AscendSupabase && window.AscendSupabase.isSupabaseConfigured()) {
+        await runWithTimeout(
+          AscendSupabase.updateUserPassword(newPass),
+          'Timed out while updating password. Please check your connection and try again.'
+        );
+        if (recoveryMessage) {
+          recoveryMessage.textContent = "Password updated successfully!";
+          recoveryMessage.className = "auth-message success";
+          recoveryMessage.style.display = "block";
+        }
+        showToast("Password updated successfully!", "success");
+        setTimeout(async () => {
+          closeRecoveryModal();
+          await checkAuth();
+        }, 1200);
+      } else {
+        showToast("Supabase is not configured.", "error");
+      }
+    } catch (err) {
+      if (recoveryMessage) {
+        recoveryMessage.textContent = err?.message || "Failed to update password.";
+        recoveryMessage.className = "auth-message error";
+        recoveryMessage.style.display = "block";
+      }
+      showToast(err?.message || "Failed to update password", "error");
+    } finally {
+      saveNewPasswordBtn.textContent = originalBtnText;
+      saveNewPasswordBtn.disabled = false;
+    }
+  });
+
+  recoveryNewPassword?.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      if (recoveryConfirmPassword) recoveryConfirmPassword.focus();
+    }
+  });
+
+  recoveryConfirmPassword?.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      saveNewPasswordBtn?.click();
+    }
+  });
+
   if (profileBtn && profileDropdown) {
     profileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -555,9 +756,14 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(async () => {
         const currentHash = window.location.hash || '';
         const isSignupFlow = currentHash.includes('type=signup');
+        const isRecoveryFlow = currentHash.includes('type=recovery') || event === 'PASSWORD_RECOVERY';
 
         // Always clean auth tokens from the URL once the session is available.
         const hadAuthHash = cleanupAuthHash();
+
+        if (isRecoveryFlow) {
+          openRecoveryModal();
+        }
 
         // Trigger reload of progress
         window.ascendCheckedProblems = null;
@@ -566,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event === 'SIGNED_IN' && session) {
           if (hadAuthHash && isSignupFlow) {
             showToast("Email verified successfully! Welcome to Ascend.", "success");
-          } else if (hadAuthHash) {
+          } else if (hadAuthHash && !isRecoveryFlow) {
             showToast("Signed in successfully!", "success");
           }
         }

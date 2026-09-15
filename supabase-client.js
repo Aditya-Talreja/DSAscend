@@ -33,6 +33,9 @@ function initSupabase() {
     // Listen internally to sync auth state changes synchronously
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentSession = session;
+      if (event === 'PASSWORD_RECOVERY') {
+        window.dispatchEvent(new CustomEvent('ascend:password-recovery', { detail: session }));
+      }
     });
 
     return supabaseClient;
@@ -83,6 +86,24 @@ async function signOut() {
   const { error } = await client.auth.signOut();
   if (error) throw error;
   currentSession = null;
+}
+
+async function resetPasswordForEmail(email) {
+  const client = initSupabase();
+  if (!client) throw new Error("Supabase is not configured.");
+  const { data, error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function updateUserPassword(newPassword) {
+  const client = initSupabase();
+  if (!client) throw new Error("Supabase is not configured.");
+  const { data, error } = await client.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+  return data;
 }
 
 async function getSession() {
@@ -245,6 +266,8 @@ window.AscendSupabase = {
   signIn,
   signInWithGoogle,
   signOut,
+  resetPasswordForEmail,
+  updateUserPassword,
   getSession,
   onAuthStateChange,
   fetchUserProgress,
