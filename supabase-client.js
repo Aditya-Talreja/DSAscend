@@ -6,6 +6,30 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabaseClient = null;
 let currentSession = undefined;
 
+// Track whether THIS specific browser tab was loaded with recovery/auth parameters in its URL
+const initialHash = window.location.hash || '';
+const initialSearch = window.location.search || '';
+const tabLoadedWithRecoveryParams = Boolean(
+  initialHash.includes('type=recovery') ||
+  initialSearch.includes('type=recovery') ||
+  initialSearch.includes('code=') ||
+  (function () {
+    try {
+      return sessionStorage.getItem('ascend_recovery_active') === 'true';
+    } catch (e) {
+      return false;
+    }
+  })()
+);
+
+function isRecoveryTargetTab() {
+  try {
+    return tabLoadedWithRecoveryParams || sessionStorage.getItem('ascend_recovery_active') === 'true';
+  } catch (e) {
+    return tabLoadedWithRecoveryParams;
+  }
+}
+
 // Initialize Supabase Client
 function initSupabase() {
   if (supabaseClient) return supabaseClient;
@@ -34,7 +58,16 @@ function initSupabase() {
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentSession = session;
       if (event === 'PASSWORD_RECOVERY') {
-        window.dispatchEvent(new CustomEvent('ascend:password-recovery', { detail: session }));
+        // Guard: only dispatch to UI if this specific tab was opened for recovery.
+        // Prevents cross-tab broadcast from opening the reset password card in other tabs.
+        if (isRecoveryTargetTab()) {
+          try {
+            sessionStorage.setItem('ascend_recovery_active', 'true');
+          } catch (e) {}
+          window.dispatchEvent(new CustomEvent('ascend:password-recovery', { detail: session }));
+        } else {
+          console.log("[AscendSupabase] PASSWORD_RECOVERY event received via cross-tab sync; suppressed modal in non-target tab.");
+        }
       }
     });
 
@@ -274,5 +307,6 @@ window.AscendSupabase = {
   upsertProgress,
   upsertProgressBulk,
   deleteProgress,
-  clearAllProgress
+  clearAllProgress,
+  isRecoveryTargetTab
 };

@@ -604,7 +604,58 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelNewPasswordBtn = document.getElementById('cancelNewPasswordBtn');
   const saveNewPasswordBtn = document.getElementById('saveNewPasswordBtn');
 
+  // Helper: Determine if THIS specific tab is the designated target for password recovery
+  function isThisTabRecoveryTarget() {
+    if (window.AscendSupabase && typeof window.AscendSupabase.isRecoveryTargetTab === 'function') {
+      return window.AscendSupabase.isRecoveryTargetTab();
+    }
+    try {
+      if (sessionStorage.getItem('ascend_recovery_active') === 'true') return true;
+    } catch (e) {}
+    return Boolean(
+      window.location.hash.includes('type=recovery') ||
+      window.location.search.includes('type=recovery') ||
+      window.location.search.includes('code=')
+    );
+  }
+
+  // Cross-tab Auth Event Broadcaster
+  function broadcastCrossTabAuth(payload) {
+    try {
+      const data = JSON.stringify({ ...payload, timestamp: Date.now() });
+      localStorage.setItem('ascend_crosstab_auth', data);
+      setTimeout(() => {
+        try {
+          if (localStorage.getItem('ascend_crosstab_auth') === data) {
+            localStorage.removeItem('ascend_crosstab_auth');
+          }
+        } catch (e) {}
+      }, 1500);
+    } catch (e) {}
+  }
+
+  // Listen for cross-tab auth events (e.g. password reset completed in another tab)
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'ascend_crosstab_auth' && e.newValue) {
+      try {
+        const data = JSON.parse(e.newValue);
+        if (data && data.event === 'PASSWORD_RESET_COMPLETE') {
+          closeRecoveryModal();
+          showToast("Password was updated in another tab! Session synced.", "info");
+          setTimeout(async () => {
+            await checkAuth();
+          }, 400);
+        }
+      } catch (err) {
+        console.error("Error handling cross-tab auth sync:", err);
+      }
+    }
+  });
+
   function openRecoveryModal() {
+    try {
+      sessionStorage.setItem('ascend_recovery_active', 'true');
+    } catch (e) {}
     if (newPasswordModalOverlay) {
       newPasswordModalOverlay.classList.add('show');
       if (recoveryNewPassword) {
@@ -617,6 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeRecoveryModal() {
+    try {
+      sessionStorage.removeItem('ascend_recovery_active');
+    } catch (e) {}
     if (newPasswordModalOverlay) {
       newPasswordModalOverlay.classList.remove('show');
     }
@@ -627,11 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.addEventListener('ascend:password-recovery', () => {
-    openRecoveryModal();
+    if (isThisTabRecoveryTarget()) {
+      openRecoveryModal();
+    } else {
+      closeRecoveryModal();
+    }
   });
 
   // Check URL hash immediately on page load in case event already fired
-  if (window.location.hash && window.location.hash.includes('type=recovery')) {
+  if (isThisTabRecoveryTarget() && (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'))) {
     setTimeout(openRecoveryModal, 400);
   }
 
@@ -693,6 +751,10 @@ document.addEventListener('DOMContentLoaded', () => {
           recoveryMessage.style.display = "block";
         }
         showToast("Password updated successfully!", "success");
+        try {
+          sessionStorage.removeItem('ascend_recovery_active');
+        } catch (e) {}
+        broadcastCrossTabAuth({ event: 'PASSWORD_RESET_COMPLETE' });
         setTimeout(async () => {
           closeRecoveryModal();
           await checkAuth();
@@ -756,13 +818,17 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(async () => {
         const currentHash = window.location.hash || '';
         const isSignupFlow = currentHash.includes('type=signup');
-        const isRecoveryFlow = currentHash.includes('type=recovery') || event === 'PASSWORD_RECOVERY';
+        const isRecoveryEvent = event === 'PASSWORD_RECOVERY';
+        const isRecoveryFlow = (currentHash.includes('type=recovery') || isRecoveryEvent) && isThisTabRecoveryTarget();
 
         // Always clean auth tokens from the URL once the session is available.
         const hadAuthHash = cleanupAuthHash();
 
         if (isRecoveryFlow) {
           openRecoveryModal();
+        } else if (isRecoveryEvent) {
+          console.log("[Ascend] PASSWORD_RECOVERY event received from another tab. Suppressing recovery modal in this tab.");
+          closeRecoveryModal();
         }
 
         // Trigger reload of progress
