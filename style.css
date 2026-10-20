@@ -141,7 +141,7 @@ body {
   box-shadow: 3px 3px 0 0 var(--neon-green);
 }
 
-/* Hover effects */
+/* Hover effects — lift up, shadow expands (same as profile btn) */
 .tab-btn:nth-child(1):hover {
   transform: translate(-3px, -3px);
   box-shadow: 6px 6px 0 0 var(--neon-cyan);
@@ -161,10 +161,18 @@ body {
   color: var(--text-dark);
 }
 
-/* Active effects */
-.tab-btn:active {
-  transform: translate(2px, 2px) !important;
-  box-shadow: 1px 1px 0 0 inherit !important;
+/* Click/press — push down, shadow collapses (same as profile btn) */
+.tab-btn:nth-child(1):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--neon-cyan);
+}
+.tab-btn:nth-child(2):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--neon-pink);
+}
+.tab-btn:nth-child(3):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--neon-green);
 }
 
 .tab-btn.active:nth-child(1) { background: var(--neon-cyan); color: var(--text-dark); }
