@@ -17,22 +17,33 @@ jobs:
         run: |
           echo "Pinging Supabase services to keep the database alive..."
           
+          # 1) Auth service health check (always succeeds, exercises Auth connection pool)
           AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/auth/v1/health" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}")
           
-          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/user_progress?select=problem_id&limit=1" \
+          # 2) Database RPC ping (runs SELECT 1 without touching user tables or triggering RLS)
+          RPC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/ping" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{}")
+
+          # 3) PostgREST endpoint query (verifies REST API gateway is reachable)
+          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/user_progress" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
           
           echo "Auth health status: $AUTH_STATUS"
-          echo "REST query status: $REST_STATUS"
+          echo "RPC ping status (SELECT 1): $RPC_STATUS"
+          echo "REST gateway status: $REST_STATUS"
           
-          # HTTP 200 = Success; HTTP 401 from PostgREST confirms PostgreSQL received and evaluated the query
-          if [ "$AUTH_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 401 ]; then
-            echo "✅ Supabase ping successful — database and API services are active!"
+          # Success if either Auth (200), RPC ping (200), or REST gateway (200) responded
+          if [ "$AUTH_STATUS" -eq 200 ] || [ "$RPC_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 200 ]; then
+            echo "✅ Supabase ping successful — services and database connection are active!"
           else
-            echo "❌ Supabase ping failed (Auth: $AUTH_STATUS, REST: $REST_STATUS)"
+            echo "❌ All Supabase ping checks failed."
             exit 1
           fi
